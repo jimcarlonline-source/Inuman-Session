@@ -35,8 +35,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # GitHub's Ubuntu machines already include the Android SDK; just accept its licenses.
+      - name: Accept Android SDK licenses
+        run: |
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          echo "Android SDK: $SDK"
+          SDKMANAGER=$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -n 1)
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Install packages
         run: |
