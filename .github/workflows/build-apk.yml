@@ -13,6 +13,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Set these two repository secrets (Settings > Secrets and variables > Actions)
+      # so every build is signed with the same permanent key.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
     steps:
       - name: Get the code
         uses: actions/checkout@v4
@@ -80,12 +85,32 @@ jobs:
         run: |
           cd "$APP_DIR/android"
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "Signing key found: building a release APK."
+            ./gradlew assembleRelease --no-daemon
+          else
+            echo "::warning::No signing key secrets found. Building a debug APK; phones with an older build must uninstall it first."
+            ./gradlew assembleDebug --no-daemon
+          fi
 
-      - name: Name the APK
+      - name: Sign and name the APK
         run: |
           mkdir -p out
-          cp "$APP_DIR/android/app/build/outputs/apk/debug/app-debug.apk" "out/InumanSession-1.0.${{ github.run_number }}.apk"
+          OUT="out/InumanSession-1.0.${{ github.run_number }}.apk"
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+            BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -n 1)
+            echo "Using build tools: $BT"
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            "$BT/zipalign" -p -f 4 "$APP_DIR/android/app/build/outputs/apk/release/app-release-unsigned.apk" "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias inuman \
+              --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+              --out "$OUT" "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" verify --verbose "$OUT"
+            rm -f "$RUNNER_TEMP/release.jks"
+          else
+            cp "$APP_DIR/android/app/build/outputs/apk/debug/app-debug.apk" "$OUT"
+          fi
 
       - name: Upload the APK
         uses: actions/upload-artifact@v4
