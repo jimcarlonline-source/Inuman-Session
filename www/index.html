@@ -246,7 +246,7 @@ h1, h2, h3, p { margin: 0; }
     <div class="head"><h2 class="h-pixel">IKAW SI...</h2><button class="btn icon-btn" type="button" data-go="title" aria-label="Bumalik">✕</button></div>
     <div class="create">
       <div class="preview">
-        <canvas id="createPreview" width="16" height="22" style="width:80px;height:110px" role="img" aria-label="Itsura ng karakter mo"></canvas>
+        <canvas id="createPreview" width="16" height="26" style="width:80px;height:130px" role="img" aria-label="Itsura ng karakter mo"></canvas>
         <div class="preview-name" id="previewName">???</div>
       </div>
       <div class="panel">
@@ -426,6 +426,10 @@ const ART = {
     ".KK.............", "KOOK.........KK.", "KKOOK.......KOK.", "KOOOOKKKKKKKOK..",
     ".KKOOOOOOOOOK...", "...KOOOWOOOOK...", "...KOOOOOOOOK...", "...KOKKKKKKOK...",
     "...KOK....KOK...", "...KK.....KK...."] },
+  askal2: { w: 16, rows: [
+    ".KK.............", "KOOK............", "KKOOK.........KK", "KOOOOKKKKKKKKOOK",
+    ".KKOOOOOOOOOK...", "...KOOOWOOOOK...", "...KOOOOOOOOK...", "...KOKKKKKKOK...",
+    "...KOK....KOK...", "...KK.....KK...."] },
   bottle: { w: 10, rows: [
     "...KKKK...", "...KRRK...", "...KKKK...", "...KCCK...", "...KCCK...",
     "..KCCCCK..", ".KCCCCCCK.", "KCWCCCCCCK", "KCWYYYYYCK", "KCWYRRRYCK",
@@ -456,10 +460,11 @@ function mix(a, b, t) {
   const A = hex2rgb(a), B = hex2rgb(b);
   return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
 }
-function drawArt(ctx, key, x, y, map) {
+function drawArt(ctx, key, x, y, map, shift) {
   const a = ART[key];
   for (let r = 0; r < a.rows.length; r++) {
     const row = a.rows[r];
+    const dy = shift ? shift(r) : 0;
     for (let c = 0; c < a.w; c++) {
       const ch = row[c];
       if (!ch || ch === ".") continue;
@@ -467,7 +472,7 @@ function drawArt(ctx, key, x, y, map) {
       if (map) col = map(ch, r, c, col);
       if (!col) continue;
       ctx.fillStyle = col;
-      ctx.fillRect(x + c, y + r, 1, 1);
+      ctx.fillRect(x + c, y + r + dy, 1, 1);
     }
   }
 }
@@ -533,17 +538,57 @@ let draft = null;
 function look() { return !createScr.hidden && draft ? draft : (save.player || DEFAULT_LOOK); }
 function pn() { return look().name || "Pare"; }
 function nameOf(i) { return i === PLAYER ? pn().toUpperCase() : NAMES[i]; }
-function drawChar(ctx, i, x, y, flush) {
-  if (i === DOG) { drawArt(ctx, "askal", x, y); return; }
-  if (i !== PLAYER) { drawArt(ctx, WHO[i], x, y); return; }
-  const L = look();
-  ART.player = { w: 16, rows: HEADS[L.hair].concat(BODY) };
-  const P = { H: HAIR_COLS[L.hairCol][0], X: SHIRTS[L.shirt][0], x: SHIRTS[L.shirt][1], S: SKINS[L.skin][0], s: SKINS[L.skin][1] };
-  drawArt(ctx, "player", x, y, (ch, r, c, col) => {
-    let o = P[ch] || col;
+/* ---------- character animation ---------- */
+const ANIM = {};
+function A(i) { return ANIM[i] || (ANIM[i] = { hopT: -9, talkUntil: 0, drinkUntil: 0, shakeT: -9 }); }
+function clock() { return (performance.now() - t0) / 1000; }
+function hop(i, delay) { A(i).hopT = clock() + (delay || 0); }
+function cheer() { [0, 1, 2, 3].concat(S ? S.guests : []).forEach((i, k) => hop(i, k * 0.08)); hop(DOG, 0.35); }
+const FEAT = {};
+function feat(key) {
+  if (FEAT[key] && key !== "player") return FEAT[key];
+  const rows = ART[key].rows; let eye = -1, mouth = -1;
+  for (let r = 3; r < 10 && r < rows.length; r++) {
+    if (eye < 0 && rows[r].includes("SKS")) eye = r;
+    if (mouth < 0 && (rows[r].includes("MM") || rows[r].includes("SRRS"))) mouth = r;
+  }
+  return (FEAT[key] = { eye, mouth });
+}
+/* breathing, blinking, talking, hopping, gulping and shaking, all in pixels */
+function drawChar(ctx, i, x, y, flush, t, still) {
+  t = t || 0;
+  const a = A(i);
+  let dx = 0, dy = 0;
+  if (!still) {
+    const ht = t - a.hopT;
+    if (ht >= 0 && ht < 0.36) dy -= Math.round(Math.sin(ht / 0.36 * Math.PI) * 3);
+    if (a.drinkUntil > t) dy += Math.floor(t * 8) % 2;
+    if (t - a.shakeT < 0.45) dx += (Math.floor(t * 30) % 2) ? 1 : -1;
+  }
+  if (i === DOG) {
+    const fast = t - a.hopT < 0.8 && t - a.hopT >= 0;
+    drawArt(ctx, Math.floor(t * (fast ? 12 : 4)) % 2 ? "askal" : "askal2", x + dx, y + dy);
+    return;
+  }
+  const key = WHO[i];
+  let P = null;
+  if (i === PLAYER) {
+    const L = look();
+    ART.player = { w: 16, rows: HEADS[L.hair].concat(BODY) };
+    P = { H: HAIR_COLS[L.hairCol][0], X: SHIRTS[L.shirt][0], x: SHIRTS[L.shirt][1], S: SKINS[L.skin][0], s: SKINS[L.skin][1] };
+  }
+  const f = feat(key), rows = ART[key].rows;
+  const blink = f.eye >= 0 && ((t + i * 0.77) % 3.4) < 0.13;
+  const talk = a.talkUntil > t && Math.floor(t * 7) % 2 === 0;
+  const breathe = still ? 0 : (Math.sin(t * 2.4 + i * 1.7) > 0.55 ? 1 : 0);
+  const skin = P ? P.S : PAL.S;
+  drawArt(ctx, key, x + dx, y + dy, (ch, r, c, col) => {
+    let o = (P && P[ch]) || col;
+    if (blink && r === f.eye && ch === "K" && rows[r][c - 1] === "S" && rows[r][c + 1] === "S") o = skin;
+    if (talk && r === f.mouth && (ch === "M" || ch === "R")) o = "#1b1420";
     if (flush && ch === "S" && r >= 4 && r <= 9) o = mix(o, "#e8706a", flush);
     return o;
-  });
+  }, breathe ? (r) => (r < 16 ? 1 : 0) : null);
 }
 
 /* ---------- game state ---------- */
@@ -591,8 +636,9 @@ function drawScene(ctx, v, t) {
     if (i === PLAYER) {
       if (v.tama > 55) x += Math.round(Math.sin(t * 2.2) * (v.tama - 55) / 22);
       if (v.tama > 35) k = Math.min(0.8, (v.tama - 35) / 70);
+      if (v === V && v.tama > 60 && t - A(PLAYER).hopT > 2.5 && Math.random() < 0.012) A(PLAYER).hopT = t;
     }
-    drawChar(ctx, i, x, y, k);
+    drawChar(ctx, i, x, y, k, t);
   }
   // table
   ctx.fillStyle = "#1b1420"; ctx.fillRect(7, 49, 82, 4); ctx.fillRect(10, 53, 76, 6); ctx.fillRect(12, 59, 5, 9); ctx.fillRect(79, 59, 5, 9);
@@ -600,7 +646,7 @@ function drawScene(ctx, v, t) {
   ctx.fillStyle = "#cfc8b6"; ctx.fillRect(11, 53, 74, 5); ctx.fillRect(13, 59, 3, 8); ctx.fillRect(80, 59, 3, 8);
   // props
   // dog naps under the table
-  drawArt(ctx, "askal", 40, 68 - (Math.floor(t * 1.5) % 4 === 0 ? 1 : 0));
+  drawChar(ctx, DOG, 40, 68, 0, t);
   drawArt(ctx, "mani", 18, 44);
   const liquidTop = 13 - Math.round(Math.max(0, Math.min(1, v.bottle)) * 9);
   drawArt(ctx, "bottle", 41, 35, (ch, r, c, col) => ((ch === "C" || ch === "W") && r >= 3 && r < liquidTop ? "#55707a" : col));
@@ -615,12 +661,12 @@ function drawScene(ctx, v, t) {
     let gy = seat.y;
     if (walking) gy -= Math.floor(t * 8) % 2;
     else if (v.holder === gi && !v.drink) gy -= Math.round((Math.sin(t * 6) + 1) / 2);
-    drawChar(ctx, gi, Math.round(v.gpos[gi]), gy, 0);
+    drawChar(ctx, gi, Math.round(v.gpos[gi]), gy, 0, t);
   }
   // glass
-  const hs = SEAT[v.holder];
+  const hs = SEAT[v.holder] || SEAT[0];
   let tx = hs.x + 8, ty = hs.y + 11;
-  if (v.drink) { const ds = SEAT[v.drink.h]; tx = ds.x + 4; ty = ds.y + 4; }
+  if (v.drink && SEAT[v.drink.h]) { const ds = SEAT[v.drink.h]; tx = ds.x + 4; ty = ds.y + 4; }
   v.gx += (tx - v.gx) * 0.18; v.gy += (ty - v.gy) * 0.25;
   drawArt(ctx, "shot", Math.round(v.gx), Math.round(v.gy));
   // weather
@@ -665,14 +711,22 @@ function sizeCanvases() {
 window.addEventListener("resize", sizeCanvases);
 let t0 = performance.now();
 function loop(now) {
-  const t = (now - t0) / 1000;
-  if (!$("#scr-game").hidden) drawScene(sctx, V, t);
-  if (!$("#scr-title").hidden) { TV.holder = Math.floor(t / 2.2) % 5; drawScene(tctx, TV, t); }
-  if (!$("#scr-intro").hidden) drawScene(ictx, IV, t);
-  if (!createScr.hidden) { cctx.clearRect(0, 0, 16, 22); drawChar(cctx, PLAYER, 0, 0, 0); }
-  pctx.clearRect(0, 0, 16, 22);
-  drawChar(pctx, portraitWho, 0, portraitWho === DOG ? 12 : 0, 0);
   requestAnimationFrame(loop);
+  const t = Math.max(0, (performance.now() - t0) / 1000);
+  if (!$("#scr-game").hidden) drawScene(sctx, V, t);
+  if (!$("#scr-title").hidden) {
+    TV.holder = Math.floor(t / 2.2) % 5;
+    const ph = (t / 2.2) % 1;
+    if (ph > 0.45 && ph < 0.75) { TV.drink = { h: TV.holder }; A(TV.holder).drinkUntil = t + 0.05; } else TV.drink = null;
+    drawScene(tctx, TV, t);
+  }
+  if (!$("#scr-intro").hidden) drawScene(ictx, IV, t);
+  if (!createScr.hidden) {
+    if (t - A(PLAYER).hopT > 2.2) A(PLAYER).hopT = t;
+    cctx.clearRect(0, 0, 16, 26); drawChar(cctx, PLAYER, 0, 4, 0, t);
+  }
+  pctx.clearRect(0, 0, 16, 22);
+  drawChar(pctx, portraitWho, 0, portraitWho === DOG ? 12 : 0, 0, t, true);
 }
 const IV = { holder: PLAYER, drink: null, gx: CX[PLAYER] + 8, gy: 43, tama: 0, bottle: 1, stock: 3, sparks: [], nextFw: 0 };
 
@@ -709,7 +763,7 @@ function pickRow(sel, items, key, swatch) {
     else b.textContent = it;
     b.setAttribute("aria-pressed", draft[key] === i ? "true" : "false");
     b.addEventListener("click", () => {
-      sfx.tap(); draft[key] = i;
+      sfx.tap(); draft[key] = i; hop(PLAYER);
       Array.from(row.children).forEach((x, j) => x.setAttribute("aria-pressed", j === i ? "true" : "false"));
     });
     row.appendChild(b);
@@ -723,7 +777,7 @@ $("#pName").addEventListener("input", (e) => {
 $("#btnSaveChar").addEventListener("click", () => {
   const name = $("#pName").value.replace(/\s+/g, " ").trim().slice(0, 12);
   if (!name) { $("#pErr").hidden = false; sfx.no(); $("#pName").focus(); return; }
-  sfx.ok();
+  sfx.ok(); hop(PLAYER);
   save.player = Object.assign({}, draft, { name });
   store.set("inuman-save-v1", save);
   show("levels");
@@ -781,7 +835,10 @@ function hud() {
   hg.textContent = S.guests.length ? "KASAMA: " + S.guests.map((g) => GUEST_INFO[g].chip).join("  ") : "";
   V.tama = S.tama; V.stock = S.stock;
 }
-function say(i, text) { portraitWho = i; $("#sayName").textContent = nameOf(i); $("#sayText").textContent = text; }
+function say(i, text) {
+  portraitWho = i; $("#sayName").textContent = nameOf(i); $("#sayText").textContent = text;
+  A(i).talkUntil = clock() + Math.min(2.4, 0.5 + String(text).length * 0.035);
+}
 function setActions(on) {
   $$("#actions .btn").forEach((b) => { b.disabled = !on || (b.dataset.act === "pulutan" && S.stock <= 0); });
 }
@@ -884,7 +941,7 @@ function addSaya(n) { S.saya = clamp(S.saya + n); hud(); }
 function lost() { return S.tama >= 100 ? "bagsak" : S.saya <= 0 ? "kj" : null; }
 
 async function drinkAnim(h, g) {
-  V.holder = h; V.drink = { h }; sfx.gulp();
+  V.holder = h; V.drink = { h }; A(h).drinkUntil = clock() + 0.7; sfx.gulp();
   await wait(650, g);
   V.drink = null;
 }
@@ -898,6 +955,7 @@ async function arrive(id, g) {
   if (id === PEARL) { S.stock += 3; addSaya(10); }
   if (id === ANALEH) { S.chaser = 0.8; addTama(-10); }
   hud();
+  hop(id); cheer();
   say(id, info.line.replace("{n}", pn()));
   await wait(1300, g);
 }
@@ -936,16 +994,16 @@ async function playerTurn(g) {
     await drinkAnim(PLAYER, g);
     S.shots++;
     const ch = S.chaser;
-    if (r === "perfect") { S.perfects++; addTama(L.shot * 0.6 * ch); addSaya(12); say(0, "Ayos! Sanay na sanay ah!"); }
-    else if (r === "good") { addTama(L.shot * ch); addSaya(8); say(0, "Ayan! Isa pa mamaya."); }
-    else { addTama(L.shot * 1.5 * ch); addSaya(2); shake(); say(present(ANALEH) ? ANALEH : 1, "Hala, nasamid! Dahan-dahan lang."); }
+    if (r === "perfect") { S.perfects++; addTama(L.shot * 0.6 * ch); addSaya(12); hop(PLAYER); cheer(); say(0, "Ayos! Sanay na sanay ah!"); }
+    else if (r === "good") { addTama(L.shot * ch); addSaya(8); hop(PLAYER); say(0, "Ayan! Isa pa mamaya."); }
+    else { addTama(L.shot * 1.5 * ch); addSaya(2); shake(); A(PLAYER).shakeT = clock(); say(present(ANALEH) ? ANALEH : 1, "Hala, nasamid! Dahan-dahan lang."); }
   } else if (act === "pulutan") {
-    S.stock--; sfx.eat(); addTama(-14); addSaya(3 - 7);
+    S.stock--; sfx.eat(); hop(2); addTama(-14); addSaya(3 - 7);
     say(2, Math.random() < 0.5 ? "Kain ka muna, " + pn() + ". Para di ka malasing." : "Uy, pulutan muna bago tagay? Sige na nga.");
   } else if (act === "kwento") {
     const res = await ask(nextQuestion());
     if (g !== gen) throw new Abort();
-    if (res.ok) { addSaya(16 - 7); say(res.asker, "Hahaha! Ang kulit mo talaga!"); }
+    if (res.ok) { addSaya(16 - 7); hop(res.asker); hop(PLAYER, 0.1); say(res.asker, "Hahaha! Ang kulit mo talaga!"); }
     else { addSaya(-8 - 7); say(res.asker, "...Ah. Okay. Tagay na lang tayo."); }
   } else if (act === "tubig") {
     sfx.water(); addTama(-22); addSaya(-5 - 7);
@@ -962,10 +1020,10 @@ async function runEvent(g) {
     S.stock += 2; addSaya(4); hud();
   } else if (ev === "tanong") {
     const res = await ask(nextQuestion());
-    if (res.ok) { addSaya(12); say(res.asker, "Hahaha! Tama ka diyan!"); } else { addSaya(-8); say(res.asker, "Hmm. Ang seryoso mo naman."); }
+    if (res.ok) { addSaya(12); cheer(); say(res.asker, "Hahaha! Tama ka diyan!"); } else { addSaya(-8); say(res.asker, "Hmm. Ang seryoso mo naman."); }
     await wait(900, g);
   } else if (ev === "bantay") {
-    say(DOG, "Arf! Arf!");
+    say(DOG, "Arf! Arf!"); hop(DOG);
     const pick = await choice("SI BANTAY!", "Nakatitig si Bantay sa sisig at kumakawag ang buntot. Bibigyan mo ba?", [{ label: "BIGYAN SI BANTAY", cls: "orange" }, { label: "SHOO, BANTAY!", cls: "ghost" }]);
     if (g !== gen) throw new Abort();
     if (pick === 0) { if (S.stock > 0) S.stock--; addSaya(8); hud(); say(2, "Ang bait mo naman! Gutom talaga 'yan si Bantay."); }
@@ -981,6 +1039,7 @@ async function runEvent(g) {
       pts += r === "perfect" ? 6 : r === "good" ? 3 : -3;
     }
     addSaya(pts);
+    if (pts > 0) { cheer(); hop(PLAYER); }
     say(2, pts >= 12 ? "Score: 100! Palakpakan!" : pts > 0 ? "Pwede na! Next song!" : "Ay, sintunado. Okay lang, masaya pa rin!");
     await wait(1000, g);
   } else if (ev === "bottomsup") {
@@ -993,9 +1052,9 @@ async function runEvent(g) {
       await drinkAnim(PLAYER, g);
       S.shots++;
       const ch = S.chaser;
-      if (r === "perfect") { S.perfects++; addTama(L.shot * 1.1 * ch); addSaya(26); say(present(PEARL) ? PEARL : 0, "WOOO! Idol!"); }
-      else if (r === "good") { addTama(L.shot * 1.6 * ch); addSaya(20); say(0, "Ayos! May bago na kaming tanggero!"); }
-      else { addTama(L.shot * 2 * ch); addSaya(8); shake(); say(1, "Naku, tumapon pa! Pero sige, palakpakan."); }
+      if (r === "perfect") { S.perfects++; addTama(L.shot * 1.1 * ch); addSaya(26); hop(PLAYER); cheer(); say(present(PEARL) ? PEARL : 0, "WOOO! Idol!"); }
+      else if (r === "good") { addTama(L.shot * 1.6 * ch); addSaya(20); cheer(); say(0, "Ayos! May bago na kaming tanggero!"); }
+      else { addTama(L.shot * 2 * ch); addSaya(8); shake(); A(PLAYER).shakeT = clock(); say(1, "Naku, tumapon pa! Pero sige, palakpakan."); }
     } else { addSaya(-10); say(0, "Hay naku. Sige na nga, next time."); }
     await wait(1000, g);
   }
