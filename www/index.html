@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="tl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#171329">
+<title>Inuman Session</title>
+<style>
+/* offline fonts bundled with the app */
+@font-face { font-family: "Press Start 2P"; src: url("fonts/press-start-2p.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "VT323"; src: url("fonts/vt323.woff2") format("woff2"); font-display: block; }
+/* app shell: fill the phone screen and stay clear of the status and gesture bars */
+*, *::before, *::after { -webkit-touch-callout: none; }
+html { height: 100%; }
+body { margin: 0; overscroll-behavior: none; }
+[hidden] { display: none !important; }
+
+/* Layout: one phone-width column; each screen fills it, the game screen stacks HUD > scene > dialog > actions */
+:root {
+  --night: #171329;
+  --ink: #0f0c1e;
+  --panel: #221c3a;
+  --panel-2: #2b2238;
+  --cream: #f3ead8;
+  --lamp: #ffcf5a;
+  --red: #c83a3a;
+  --wine: #8c2430;
+  --mint: #7fd1a0;
+  --lilac: #9a90b8;
+  --soft: #c9bfe0;
+  --blue: #3b6cc0;
+  --orange: #d9822b;
+  --teal: #7fd1c4;
+  --pixel: "Press Start 2P", ui-monospace, Menlo, monospace;
+  --vt: "VT323", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--night);
+  color: var(--cream);
+  font-family: var(--vt);
+  font-size: 22px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+#app {
+  position: relative;
+  height: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+h1, h2, h3, p { margin: 0; }
+
+.btn {
+  font-family: var(--pixel);
+  font-size: 13px;
+  letter-spacing: 1px;
+  min-height: 52px;
+  padding: 8px 12px;
+  color: var(--cream);
+  background: var(--panel);
+  border: 4px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 0 5px 0 var(--ink);
+  cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.btn:focus-visible, .opt:focus-visible, .lvl:focus-visible { outline: 3px solid var(--lamp); outline-offset: 3px; }
+.btn:disabled { opacity: .38; cursor: default; }
+.btn .sub { font-family: var(--vt); font-size: 18px; letter-spacing: 0; }
+.btn.red { background: var(--red); }
+.btn.orange { background: var(--orange); color: #1b1420; }
+.btn.blue { background: var(--blue); }
+.btn.teal { background: var(--teal); color: #1b1420; }
+.btn.lamp { background: var(--lamp); color: #1b1420; }
+.btn.big { font-size: 18px; min-height: 62px; }
+.btn.ghost { background: var(--panel); color: var(--lamp); }
+
+/* Title */
+.title-wrap { align-items: center; text-align: center; justify-content: center; }
+.logo { font-family: var(--pixel); font-size: clamp(30px, 10vw, 42px); color: var(--lamp); text-shadow: 4px 4px 0 var(--wine), 8px 8px 0 var(--ink); line-height: 1; }
+.logo-2 { font-family: var(--pixel); font-size: 18px; letter-spacing: 6px; text-shadow: 3px 3px 0 var(--ink); }
+.tag { color: var(--soft); font-size: 26px; }
+.stack { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.row { display: flex; gap: 12px; }
+.row > * { flex: 1; }
+.fine { color: var(--lilac); font-size: 19px; }
+
+/* Panels */
+.panel { background: var(--panel); border: 4px solid var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.h-pixel { font-family: var(--pixel); font-size: 16px; color: var(--lamp); text-shadow: 3px 3px 0 var(--wine); line-height: 1.3; }
+.icon-btn { min-height: 44px; min-width: 44px; padding: 6px 10px; font-size: 11px; }
+.how li { margin-bottom: 6px; line-height: 1.05; color: var(--soft); }
+.how b { color: var(--cream); font-weight: normal; }
+.how ul { margin: 0; padding-left: 20px; }
+
+/* Level select */
+.levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; overflow-y: auto; padding-bottom: 8px; min-height: 0; }
+.lvl {
+  text-align: left; font-family: var(--vt); color: var(--cream);
+  background: var(--panel); border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink);
+  padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-height: 104px;
+}
+.lvl .num { font-family: var(--pixel); font-size: 11px; color: var(--lilac); }
+.lvl .nm { font-size: 22px; line-height: 1; }
+.lvl .st { font-family: var(--pixel); font-size: 11px; color: var(--lamp); margin-top: auto; letter-spacing: 2px; }
+.lvl:disabled { opacity: .45; cursor: default; }
+.lvl:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+
+/* Intro */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--panel-2); border: 3px solid var(--ink); padding: 4px 8px; font-size: 20px; }
+.chip b { color: var(--lamp); font-weight: normal; }
+.note { color: var(--mint); font-size: 21px; line-height: 1.05; }
+
+/* HUD */
+.hud { background: var(--panel); border: 4px solid var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.hud-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hud-lv { font-family: var(--pixel); font-size: 10px; color: var(--lamp); line-height: 1.4; min-width: 0; }
+.hud-round { font-family: var(--pixel); font-size: 10px; color: var(--soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meter { display: flex; align-items: center; gap: 8px; }
+.meter > span { font-family: var(--pixel); font-size: 9px; width: 44px; flex: none; }
+.segs { flex: 1; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px; }
+.seg { height: 12px; background: #3a2f4a; }
+.saya-bar { position: relative; flex: 1; height: 12px; background: #3a2f4a; }
+.saya-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--mint); transition: width .3s steps(6); }
+.saya-target { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--cream); }
+.meter .val { font-family: var(--pixel); font-size: 9px; width: 30px; text-align: right; flex: none; font-variant-numeric: tabular-nums; }
+
+.hud-guests { font-family: var(--pixel); font-size: 8px; line-height: 1.6; color: #e86aa0; }
+.scene-wrap { display: flex; justify-content: center; }
+#scene { border: 4px solid var(--ink); }
+.shake { animation: shake .35s steps(4); }
+@keyframes shake { 0%{transform:translateX(0)} 25%{transform:translateX(-4px)} 50%{transform:translateX(4px)} 75%{transform:translateX(-2px)} 100%{transform:translateX(0)} }
+
+.dialog { background: var(--ink); border: 4px solid var(--cream); box-shadow: 0 0 0 4px var(--ink); padding: 10px; display: flex; gap: 10px; min-height: 92px; box-sizing: border-box; }
+.portrait { flex: none; width: 52px; height: 72px; background: #2f6d5a; border: 3px solid var(--cream); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+.say { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.say-name { font-family: var(--pixel); font-size: 10px; color: var(--lamp); }
+.say-text { font-size: 23px; line-height: 1.02; }
+
+.actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: auto; padding-bottom: 6px; }
+
+/* Overlay mini-games */
+.overlay { position: absolute; inset: 0; background: rgba(15, 12, 30, .72); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal { width: 100%; max-width: 400px; background: var(--panel); border: 4px solid var(--cream); box-shadow: 0 0 0 4px var(--ink), 0 10px 0 4px var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; }
+.modal h3 { font-family: var(--pixel); font-size: 14px; color: var(--lamp); line-height: 1.4; }
+.modal p { color: var(--soft); font-size: 22px; line-height: 1.05; }
+.track { position: relative; height: 44px; background: var(--ink); border: 4px solid var(--cream); cursor: pointer; }
+.zone { position: absolute; top: 0; bottom: 0; }
+.zone.good { background: var(--orange); }
+.zone.perfect { background: var(--lamp); }
+.track.flicker .zone { animation: flick 1.1s steps(1) infinite; }
+@keyframes flick { 0%{opacity:1} 40%{opacity:.1} 55%{opacity:1} 70%{opacity:.15} 80%{opacity:1} }
+.marker { position: absolute; top: -10px; bottom: -10px; width: 6px; margin-left: -3px; background: var(--cream); box-shadow: 0 0 0 2px var(--ink); }
+.verdict { font-family: var(--pixel); font-size: 18px; text-align: center; min-height: 22px; }
+.v-perfect { color: var(--lamp); } .v-good { color: var(--orange); } .v-miss { color: #ff7a6e; }
+.asker { font-family: var(--pixel); font-size: 10px; color: var(--mint); }
+.q { font-family: var(--vt) !important; font-size: 28px !important; color: var(--cream) !important; line-height: 1 !important; }
+.opts { display: flex; flex-direction: column; gap: 10px; }
+.opt { font-family: var(--vt); font-size: 22px; line-height: 1.02; text-align: left; color: var(--cream); background: var(--panel-2); border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; min-height: 48px; cursor: pointer; }
+.opt.ok { background: #2f6d5a; } .opt.no { background: var(--wine); }
+
+/* Result */
+.res-title { font-family: var(--pixel); font-size: 24px; line-height: 1.2; text-shadow: 3px 3px 0 var(--ink); }
+.stars { font-family: var(--pixel); font-size: 28px; color: var(--lamp); letter-spacing: 8px; }
+.stars .off { color: #3a2f4a; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--panel-2); border: 3px solid var(--ink); padding: 8px; }
+.stat b { display: block; font-family: var(--pixel); font-size: 13px; color: var(--lamp); font-weight: normal; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* Character creator */
+.create { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 6px; }
+.preview { display: flex; align-items: flex-end; gap: 16px; background: var(--panel-2); border: 4px solid var(--ink); padding: 12px 16px; }
+.preview-name { font-family: var(--pixel); font-size: 14px; color: var(--lamp); padding-bottom: 8px; overflow-wrap: anywhere; min-width: 0; line-height: 1.4; }
+.lbl { font-family: var(--pixel); font-size: 10px; color: var(--soft); }
+#pName { font-family: var(--vt); font-size: 26px; color: var(--cream); background: var(--ink); border: 3px solid var(--cream); border-radius: 0; padding: 6px 10px; min-height: 48px; width: 100%; box-sizing: border-box; user-select: text; -webkit-user-select: text; }
+#pName::placeholder { color: var(--lilac); }
+#pName:focus-visible { outline: 3px solid var(--lamp); outline-offset: 2px; }
+.err { color: #ff7a6e; font-size: 20px; }
+.opts-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.pick { font-family: var(--vt); font-size: 21px; color: var(--cream); background: var(--panel-2); border: 3px solid var(--ink); border-radius: 0; min-height: 44px; min-width: 44px; padding: 4px 12px; cursor: pointer; }
+.pick.sw { width: 44px; padding: 0; }
+.pick[aria-pressed="true"] { outline: 3px solid var(--lamp); outline-offset: 2px; color: var(--lamp); }
+.pick:focus-visible { outline: 3px solid var(--cream); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shake { animation: none; }
+  .track.flicker .zone { animation: none; opacity: .5; }
+  .saya-fill { transition: none; }
+}
+/* app shell: keep the game clear of the status bar and the gesture bar */
+#app { padding-top: calc(12px + env(safe-area-inset-top, 0px)); padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TITLE -->
+  <section class="screen title-wrap" id="scr-title">
+    <h1 class="logo">INUMAN</h1>
+    <div class="logo-2">SESSION</div>
+    <p class="tag">Isang tagay pa, pare.</p>
+    <canvas id="titleScene" width="96" height="80" aria-label="Ang barkada sa harap ng sari-sari store, gabi" role="img"></canvas>
+    <div class="stack">
+      <button class="btn big red" id="btnPlay" type="button">LARO NA!</button>
+      <div class="row">
+        <button class="btn ghost" id="btnHow" type="button">PAANO?</button>
+        <button class="btn ghost" id="btnMute" type="button">TUNOG: ON</button>
+      </div>
+    </div>
+    <p class="fine">18+ lang. Inom nang responsable.</p>
+  </section>
+
+  <!-- HOW TO PLAY -->
+  <section class="screen" id="scr-how" hidden>
+    <div class="head"><h2 class="h-pixel">PAANO LARUIN</h2><button class="btn icon-btn" type="button" data-go="title" aria-label="Bumalik">✕</button></div>
+    <div class="panel how">
+      <ul>
+        <li>Ikaw ang <b>bagong salta</b> sa barkada nina Tito Ven, Tita Thea, Ate Nini at Ate Bonsai (at si Bantay). Isang baso lang ang umiikot. Pag ikaw na ang may hawak, pumili ng isa:</li>
+        <li><b>TAGAY</b>: inom. Pindutin ang INOM! kapag nasa dilaw ang marker. Mas sakto, mas konting tama at mas maraming saya.</li>
+        <li><b>PULUTAN</b>: bawas tama, pero limitado ang pulutan.</li>
+        <li><b>KWENTO</b>: sagutin ang tanong ng barkada. Tamang sagot, dagdag saya.</li>
+        <li><b>TUBIG</b>: malaking bawas tama, pero KJ ka sa mata nila.</li>
+        <li>Kapag hindi ka uminom sa ikot mo, bawas ng konting saya.</li>
+        <li>Huwag umabot sa 100 ang <b>TAMA</b> (bagsak ka). Huwag maubos ang <b>SAYA</b> (KJ ka). Tapusin ang gabi na lampas sa target na saya.</li>
+      </ul>
+    </div>
+    <button class="btn big red" type="button" id="btnHowGo">TARA NA!</button>
+  </section>
+
+  <!-- CHARACTER CREATOR -->
+  <section class="screen" id="scr-create" hidden>
+    <div class="head"><h2 class="h-pixel">IKAW SI...</h2><button class="btn icon-btn" type="button" data-go="title" aria-label="Bumalik">✕</button></div>
+    <div class="create">
+      <div class="preview">
+        <canvas id="createPreview" width="16" height="22" style="width:80px;height:110px" role="img" aria-label="Itsura ng karakter mo"></canvas>
+        <div class="preview-name" id="previewName">???</div>
+      </div>
+      <div class="panel">
+        <label class="lbl" for="pName">PANGALAN</label>
+        <input id="pName" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Hal. Jun, Mika, Paeng">
+        <p class="err" id="pErr" hidden>Lagyan mo muna ng pangalan.</p>
+        <div class="lbl">BUHOK</div><div class="opts-row" id="optHair"></div>
+        <div class="lbl">KULAY NG BUHOK</div><div class="opts-row" id="optHairCol"></div>
+        <div class="lbl">BALAT</div><div class="opts-row" id="optSkin"></div>
+        <div class="lbl">DAMIT</div><div class="opts-row" id="optShirt"></div>
+      </div>
+    </div>
+    <button class="btn big red" id="btnSaveChar" type="button">TARA, INUMAN!</button>
+  </section>
+
+  <!-- LEVEL SELECT -->
+  <section class="screen" id="scr-levels" hidden>
+    <div class="head"><h2 class="h-pixel">MGA GABI</h2><div class="row" style="flex:none;gap:8px"><button class="btn icon-btn" type="button" data-go="create">KARAKTER</button><button class="btn icon-btn" type="button" data-go="title" aria-label="Bumalik">✕</button></div></div>
+    <div class="levels" id="levelGrid"></div>
+  </section>
+
+  <!-- LEVEL INTRO -->
+  <section class="screen" id="scr-intro" hidden>
+    <div class="head"><h2 class="h-pixel" id="introNum">GABI 1</h2><button class="btn icon-btn" type="button" data-go="levels" aria-label="Bumalik">✕</button></div>
+    <div class="panel">
+      <h3 class="h-pixel" id="introName" style="font-size:14px"></h3>
+      <p id="introDesc" style="font-size:24px;line-height:1.05"></p>
+      <div class="chips" id="introChips"></div>
+      <p class="note" id="introNote"></p>
+    </div>
+    <canvas id="introScene" width="96" height="80" style="align-self:center" aria-hidden="true"></canvas>
+    <button class="btn big red" id="btnStart" type="button" style="margin-top:auto">SIMULAN</button>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="scr-game" hidden>
+    <div class="hud">
+      <div class="hud-top">
+        <div class="hud-lv" id="hudLv">GABI 1</div>
+        <div class="row" style="flex:none;align-items:center;gap:8px">
+          <div class="hud-round" id="hudRound">IKOT 1/6</div>
+          <button class="btn icon-btn" id="btnQuit" type="button" aria-label="Umalis sa gabi">✕</button>
+        </div>
+      </div>
+      <div class="meter"><span>TAMA</span><div class="segs" id="tamaSegs"></div><span class="val" id="tamaVal">0</span></div>
+      <div class="meter"><span>SAYA</span><div class="saya-bar"><div class="saya-fill" id="sayaFill"></div><div class="saya-target" id="sayaTarget"></div></div><span class="val" id="sayaVal">50</span></div>
+      <div class="hud-guests" id="hudGuests" hidden></div>
+    </div>
+    <div class="scene-wrap"><canvas id="scene" width="96" height="80" role="img" aria-label="Ang inuman sa mesa"></canvas></div>
+    <div class="dialog" aria-live="polite">
+      <div class="portrait"><canvas id="portrait" width="16" height="22" style="width:32px;height:44px;margin-bottom:6px" aria-hidden="true"></canvas></div>
+      <div class="say"><div class="say-name" id="sayName">TITO VEN</div><p class="say-text" id="sayText">Tara, simulan na natin!</p></div>
+    </div>
+    <div class="actions" id="actions">
+      <button class="btn red" type="button" data-act="tagay" disabled><span>TAGAY</span><span class="sub">+Tama +Saya</span></button>
+      <button class="btn orange" type="button" data-act="pulutan" disabled><span>PULUTAN</span><span class="sub" id="stockLbl">−Tama · 3 natira</span></button>
+      <button class="btn blue" type="button" data-act="kwento" disabled><span>KWENTO</span><span class="sub">Sagutin, +Saya</span></button>
+      <button class="btn teal" type="button" data-act="tubig" disabled><span>TUBIG</span><span class="sub">−−Tama −Saya</span></button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="scr-result" hidden>
+    <div class="panel" style="text-align:center;align-items:center;gap:14px">
+      <h2 class="res-title" id="resTitle">PANALO!</h2>
+      <div class="stars" id="resStars"></div>
+      <p id="resText" style="font-size:24px;line-height:1.05;color:var(--soft)"></p>
+    </div>
+    <div class="stats" id="resStats"></div>
+    <div class="stack" style="margin-top:auto">
+      <button class="btn big red" id="btnNext" type="button">SUSUNOD NA GABI</button>
+      <div class="row">
+        <button class="btn ghost" id="btnRetry" type="button">ULITIN</button>
+        <button class="btn ghost" type="button" data-go="levels">MGA GABI</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="overlay" id="overlay" hidden><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+/* ---------- storage (per-device progress) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let save = store.get("inuman-save-v1", { unlocked: 1, stars: [] });
+let muted = store.get("inuman-mute", false);
+
+/* ---------- sound ---------- */
+let actx = null;
+function beep(f, d = 0.08, type = "square", vol = 0.05, slide = 0) {
+  if (muted) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.linearRampToValueAtTime(Math.max(40, f + slide), t + d);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d + 0.02);
+  } catch (e) {}
+}
+const seq = (notes, gap = 80, d = 0.08) => notes.forEach((f, i) => setTimeout(() => beep(f, d), i * gap));
+const sfx = {
+  tap: () => beep(660, 0.04),
+  gulp: () => { beep(240, 0.1, "square", 0.05, -90); setTimeout(() => beep(190, 0.12, "square", 0.05, -70), 120); },
+  perfect: () => seq([523, 659, 784, 1047], 70),
+  good: () => seq([523, 784], 90),
+  miss: () => beep(150, 0.3, "sawtooth", 0.05, -70),
+  eat: () => seq([330, 392], 70, 0.06),
+  water: () => seq([880, 740, 620], 60, 0.05),
+  ok: () => seq([659, 880], 90),
+  no: () => seq([300, 220], 120, 0.12),
+  win: () => seq([523, 659, 784, 1047, 784, 1047], 110, 0.12),
+  lose: () => seq([392, 330, 262, 196], 160, 0.16)
+};
+
+/* ---------- pixel art ---------- */
+const PAL = {
+  K: "#1b1420", S: "#d29a6a", s: "#a8714a", H: "#2a1d1a", W: "#f3ead8",
+  R: "#c83a3a", r: "#8c2430", B: "#3b6cc0", b: "#244a8a", Y: "#efbb3c",
+  y: "#b8862a", G: "#3f8a4e", g: "#2a5e36", P: "#3a3550", T: "#c2a06c",
+  M: "#7a2a2a", F: "#e8706a", O: "#d9822b", D: "#6b3a1e", L: "#9aa0ac",
+  C: "#bfe3da", A: "#f2ecc0", Q: "#e86aa0", q: "#b04878", N: "#3aa59a", n: "#26776f"
+};
+const ART = {
+  pearl: { w: 16, rows: [
+    "....KKKKKKKK....", "..KKDDODDDODKK..", ".KDDDDDDDDDDDDK.", ".KDDDSSSSSSDDDK.",
+    ".KDDSSSSSSSSDDK.", ".KDDSKSSSSKSDDK.", ".KDDSSFSSFSSDDK.", ".KDDSSSRRSSSDDK.",
+    ".KDDDsSSSSsDDDK.", ".KDDKKWKKWKKDDK.", "..KKQWQQQQWQKK..", ".KSQQQWQQWQQQSK.",
+    ".KSQQQQWWQQQQSK.", ".KSQQQQQQQQQQSK.", ".KSQqQQQQQQqQSK.", "..KKQQQQQQQQKK..",
+    "..KQQQQQQQQQQK..", "..KQQqQQQQqQQK..", "..KKKKKKKKKKKK..", "....KSK..KSK....",
+    "....KSK..KSK....", "...KRRK..KRRK..."] },
+  analeh: { w: 16, rows: [
+    "....KKKKKKKK....", "...KHHHHHHHHK...", "..KHHHHHHHHHHKK.", "..KHHSSSSSSHKHHK",
+    "...KSSSSSSSSKHK.", "...KSKSSSSKSKHK.", "...KSSSSSSSSKK..", "...KSSSMMSSSK...",
+    "....KsSSSSsK....", ".....KKSSKK.....", "..KKNNNSSNNNKK..", ".KSNNNNNNNNNNSK.",
+    ".KSNNWNNNNNNNSK.", ".KSNNWNNNNnNNSK.", ".KsNNNNNNNNNNsK.", "..KKNNNNNNNNKK..",
+    "...KNNNNNNNNK...", "...KNNNKKNNNK...", "...KNNK..KNNK...", "...KNNK..KNNK...",
+    "...KWWK..KWWK...", "...KKKK..KKKK..."] },
+  ven: { w: 16, rows: [
+    ".....KKKKKK.....", "....KHHHHHHK....", "...KHHHHHHHHK...", "...KHSSSSSSHK...",
+    "...KSSSSSSSSK...", "...KSKSSSSKSK...", "...KSSSSSSSSK...", "...KsSSMMSSsK...",
+    "....KsSSSSsK....", ".....KKSSKK.....", "..KKWWWSSWWWKK..", ".KSSWWWWWWWWYYK.",
+    ".KSSWWWWWWWWYYK.", ".KSSWWWWWWWWSYK.", ".KSsWWWWWWWWSsK.", ".KSSWWWWWWWWSSK.",
+    "..KKPPPPPPPPKK..", "...KPPPPPPPPK...", "...KPPPKKPPPK...", "...KPPK..KPPK...",
+    "...KssK..KssK...", "...KKKK..KKKK..."] },
+  thea: { w: 16, rows: [
+    "....KKKKKKKK....", "...KHHKHHKHHK...", "..KHHHHHHHHHHK..", "..KHHSSSSSSHHK..",
+    "..KHSSSSSSSSHK..", "..KHKLKSSKLKHK..", "..KHSSSSSSSSHK..", "..KHSSSRRSSSHK..",
+    "...KHsSSSSsHK...", "....KKSSSSKK....", "..KKRRRRRRRRKK..", ".KSRRFRRRRFRRSK.",
+    ".KSRRRRRFRRRRSK.", ".KSRFRRRRRRFRSK.", ".KSRRRRFRRRRRSK.", "..KKRFRRRRFRKK..",
+    "..KRRRRFRRRRRK..", "..KRFRRRRRRFRK..", "..KKKKKKKKKKKK..", "....KSK..KSK....",
+    "....KSK..KSK....", "...KGGK..KGGK..."] },
+  nini: { w: 16, rows: [
+    "....KKKKKKKK....", "...KHHHHHHHHK...", "..KHHHHHHHHHHK..", "..KHHSSSSSSHHK..",
+    "..KHSSSSSSSSHK..", "..KHSKSSSSKSHK..", "..KHSSFSSFSSHK..", "..KHSSSMMSSSHK..",
+    "..KHHsSSSSsHHK..", "..KHHKKSSKKHHK..", "..KHYYYYYYYYHK..", ".KSHYYYYYYYYHSK.",
+    ".KSKYYYYYYYYKSK.", ".KSKYYYyyYYYKSK.", ".KSKYYYYYYYYKSK.", "..KKYYYYYYYYKK..",
+    "...KBBBBBBBBK...", "...KBBBBBBBBK...", "...KBBBKKBBBK...", "...KssK..KssK...",
+    "...KssK..KssK...", "...KKKK..KKKK..."] },
+  bonsai: { w: 16, rows: [
+    "......KKKK......", ".....KHHHHK.....", "....KKHHHHKK....", "...KHHHHHHHHK...",
+    "..KHHSSSSSSHHK..", "..KHSSSSSSSSHK..", "..KHSKSSSSKSHK..", "..KHFFSSSSFFHK..",
+    "...KSSSMMSSSK...", "....KsSSSSsK....", "..KKGGGSSGGGKK..", ".KSGGGGGGGGGGSK.",
+    ".KSGGGGGGGGGGSK.", ".KSGGgGGGGgGGSK.", ".KsGGGGGGGGGGsK.", "..KKGGGGGGGGKK..",
+    "...KBBBBBBBBK...", "...KBBBKKBBBK...", "...KSSK..KSSK...", "...KSSK..KSSK...",
+    "...KWWK..KWWK...", "...KKKK..KKKK..."] },
+  askal: { w: 16, rows: [
+    ".KK.............", "KOOK.........KK.", "KKOOK.......KOK.", "KOOOOKKKKKKKOK..",
+    ".KKOOOOOOOOOK...", "...KOOOWOOOOK...", "...KOOOOOOOOK...", "...KOKKKKKKOK...",
+    "...KOK....KOK...", "...KK.....KK...."] },
+  bottle: { w: 10, rows: [
+    "...KKKK...", "...KRRK...", "...KKKK...", "...KCCK...", "...KCCK...",
+    "..KCCCCK..", ".KCCCCCCK.", "KCWCCCCCCK", "KCWYYYYYCK", "KCWYRRRYCK",
+    "KCCYYYYYCK", "KCCCCCCCCK", "KCCCCCCCCK", ".KCCCCCCK.", "..KKKKKK.."] },
+  shot: { w: 8, rows: [
+    "KKKKKKKK", "KCAAAACK", "KCAAAACK", ".KCAACK.", ".KCCCCK.", ".KCCCCK.", "..KKKK.."] },
+  sisig: { w: 16, rows: [
+    "................", "...KKKKKKKKKK...", "..KOODOODOOOOK..", ".KDOYODOOMODOOK.",
+    "KLKDOODOOYODDKLK", "KLLKKKKKKKKKKLLK", ".KLLLLLLLLLLLLK.", "..KKKKKKKKKKKK.."] },
+  mani: { w: 12, rows: [
+    "...TTT.TT...", "..TTTTTTTT..", "KKKKKKKKKKKK", "KRRRRRRRRRRK", ".KRRRRRRRRK.", "..KKKKKKKK.."] }
+};
+/* player character parts: H hair, X shirt, x shirt shade, S/s skin, filled from the creator */
+const HEADS = [
+  [".....KKKKKK.....", "....KHHHHHHK....", "...KHHHHHHHHK...", "...KHSSSSSSHK...", "...KSSSSSSSSK...", "...KSKSSSSKSK...", "...KSSSSSSSSK...", "...KsSSMMSSsK...", "....KsSSSSsK....", ".....KKSSKK....."],
+  ["....KKKKKKKK....", "...KHHHHHHHHK...", "..KHHHHHHHHHHK..", "..KHHSSSSSSHHK..", "..KHSSSSSSSSHK..", "..KHSKSSSSKSHK..", "..KHSSSSSSSSHK..", "..KHSSSMMSSSHK..", "..KHHsSSSSsHHK..", "..KHHKKSSKKHHK.."],
+  ["....KKKKKKKK....", "...KHHKHHKHHK...", "..KHHHHHHHHHHK..", "..KHHSSSSSSHHK..", "..KHSSSSSSSSHK..", "..KHSKSSSSKSHK..", "..KHSSSSSSSSHK..", "..KHSSSMMSSSHK..", "...KHsSSSSsHK...", "....KKSSSSKK...."],
+  ["....KKKKKKKK....", "...KXXXXXXXXK...", "..KXXxXXXXXXXKK.", "...KHSSSSSSHK...", "...KSSSSSSSSK...", "...KSKSSSSKSK...", "...KSSSSSSSSK...", "...KsSSMMSSsK...", "....KsSSSSsK....", "...KKKSSSSKKK..."]
+];
+const BODY = ["..KKXXXSSXXXKK..", ".KSXXXXXXXXXXSK.", ".KSXXXXXXXXXXSK.", ".KSXXxXXXXxXXSK.", ".KsXXXXXXXXXXsK.", "..KKXXXXXXXXKK..", "...KPPPPPPPPK...", "...KPPPKKPPPK...", "...KPPK..KPPK...", "...KPPK..KPPK...", "...KWWK..KWWK...", "...KKKK..KKKK..."];
+const HAIRS = ["Maikli", "Mahaba", "Kulot", "Sumbrero"];
+const HAIR_COLS = [["#2a1d1a", "Itim"], ["#6b3a1e", "Kayumanggi"], ["#b8862a", "Kulay-mais"], ["#9aa0ac", "Abo"]];
+const SKINS = [["#d29a6a", "#a8714a", "Kayumanggi"], ["#b5794a", "#8a5530", "Morena"], ["#ecc39a", "#c8966a", "Maputi"]];
+const SHIRTS = [["#c83a3a", "#8c2430", "Pula"], ["#3b6cc0", "#244a8a", "Asul"], ["#7a4cb0", "#523080", "Ube"], ["#d9822b", "#a85e18", "Kahel"], ["#4a4a58", "#30303c", "Abo"]];
+const DEFAULT_LOOK = { name: "", hair: 0, hairCol: 0, skin: 0, shirt: 0 };
+function hex2rgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mix(a, b, t) {
+  const A = hex2rgb(a), B = hex2rgb(b);
+  return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
+}
+function drawArt(ctx, key, x, y, map) {
+  const a = ART[key];
+  for (let r = 0; r < a.rows.length; r++) {
+    const row = a.rows[r];
+    for (let c = 0; c < a.w; c++) {
+      const ch = row[c];
+      if (!ch || ch === ".") continue;
+      let col = PAL[ch];
+      if (map) col = map(ch, r, c, col);
+      if (!col) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(x + c, y + r, 1, 1);
+    }
+  }
+}
+
+/* ---------- content ---------- */
+const WHO = ["ven", "thea", "nini", "bonsai", "player", "askal", "pearl", "analeh"];
+const NAMES = ["TITO VEN", "TITA THEA", "ATE NINI", "ATE BONSAI", null, "BANTAY", "ATE PEARL", "ATE ANALEH"];
+const CX = [2, 21, 40, 59, 78];
+const PLAYER = 4, DOG = 5, PEARL = 6, ANALEH = 7;
+/* table seats for the barkada; special guests stand in front of the table at the corners */
+const SEAT = CX.map((x) => ({ x, y: 32 }));
+SEAT[PEARL] = { x: 2, y: 57, from: -18 };
+SEAT[ANALEH] = { x: 78, y: 57, from: 98 };
+const GUEST_INFO = {
+  [PEARL]: { title: "DUMATING SI ATE PEARL!", text: "Galing sa salon, may dalang lechon manok. Siya ang buhay ng party: +3 pulutan, +10 saya, at dagdag saya bawat ikot habang nandito siya.", btn: "UPO KA, ATE!", line: "Mga bes! Na-miss n'yo ko? Usog-usog!", chip: "ATE PEARL · +SAYA" },
+  [ANALEH]: { title: "DUMATING SI ATE ANALEH!", text: "Kakagaling sa night shift sa ospital, may dalang chaser at tubig. Habang nandito siya, mas mababa ang tama ng bawat tagay mo at bumababa pa ito bawat ikot.", btn: "WELCOME, ATE!", line: "Uy {n}, chaser muna bago tagay ha. Nurse ang kaharap mo.", chip: "ATE ANALEH · −TAMA" }
+};
+const LEVELS = [
+  { name: "Unang Tagay", desc: "Unang inuman mo kasama ang barkada. Chill lang, isang bote lang 'to.", note: "Tip: pindutin ang INOM! kapag nasa dilaw ang marker.", rounds: 6, shot: 13, decay: 1, stock: 3, speed: 0.9, perfW: 14, goodW: 36, target: 50, events: [], chance: 0 },
+  { name: "Birthday ni Tito Ven", desc: "Birthday ng tanggero. Mas mahaba ang gabi at mahilig magtanong si Tita Thea.", note: "Bago: may tanong sa pagitan ng ikot, at nakatitig si Bantay sa pulutan.", rounds: 7, shot: 14, decay: 1.5, stock: 3, speed: 1.0, perfW: 12, goodW: 32, target: 55, events: ["tanong", "bantay"], chance: 0.35 },
+  { name: "Fiesta sa Barangay", desc: "Maraming pulutan galing sa kapitbahay. Kain nang kain para hindi malasing.", note: "Bago: may dumadaang kapitbahay na may dalang pulutan.", rounds: 8, shot: 15, decay: 1.5, stock: 5, speed: 1.1, perfW: 12, goodW: 30, target: 55, events: ["kapitbahay", "tanong", "bantay"], chance: 0.4, guests: [PEARL] },
+  { name: "Brownout", desc: "Nawalan ng kuryente. Kandila lang ang ilaw at kumikislap ang target.", note: "Mahirap makita ang dilaw. Bilangin ang galaw ng marker.", rounds: 8, shot: 15, decay: 2, stock: 3, speed: 1.15, perfW: 10, goodW: 28, target: 55, events: ["tanong"], chance: 0.35, dark: true },
+  { name: "Despedida ni Ate Nini", desc: "Aalis na si Ate Nini papuntang abroad. Mabilis bumaba ang saya, kaya pasayahin ang barkada.", note: "Bago: videoke. Tatlong tapik para sa saya.", rounds: 9, shot: 16, decay: 3, stock: 3, speed: 1.2, perfW: 10, goodW: 28, target: 55, events: ["videoke", "tanong"], chance: 0.4, guests: [ANALEH] },
+  { name: "Ulan sa Labas", desc: "Bumuhos ang ulan, walang makakauwi. Mag-ingat sa hamon ni Tito Ven.", note: "Bago: Bottoms Up. Malaking saya, malaking tama.", rounds: 10, shot: 16, decay: 2, stock: 4, speed: 1.3, perfW: 9, goodW: 26, target: 58, events: ["bottomsup", "tanong", "kapitbahay", "bantay"], chance: 0.4, rain: true },
+  { name: "Videoke Night", desc: "Nirentahan ang videoke hanggang hatinggabi. Sabayan ang beat.", note: "Madalas ang videoke ngayong gabi.", rounds: 10, shot: 17, decay: 2.5, stock: 4, speed: 1.35, perfW: 9, goodW: 26, target: 60, events: ["videoke", "videoke", "tanong"], chance: 0.5, guests: [PEARL] },
+  { name: "Finals ng Liga", desc: "Finals ng liga sa barangay. Mabilis ang tagay, maliit ang target.", note: "Mas mabilis ang marker. Mag-pulutan kung kailangan.", rounds: 11, shot: 18, decay: 2.5, stock: 4, speed: 1.45, perfW: 8, goodW: 24, target: 60, events: ["bottomsup", "videoke", "tanong"], chance: 0.45, guests: [ANALEH] },
+  { name: "Reunion ng Barkada", desc: "Kumpleto ulit ang barkada after ten years. Maraming tanong at mahabang gabi.", note: "Maraming tanong. Kilalanin ang barkada.", rounds: 12, shot: 19, decay: 3, stock: 5, speed: 1.55, perfW: 8, goodW: 22, target: 62, events: ["tanong", "tanong", "bottomsup", "kapitbahay", "bantay"], chance: 0.5, guests: [PEARL, ANALEH] },
+  { name: "Bagong Taon", desc: "Huling gabi ng taon at pinakamahabang inuman. Kaya mo ba hanggang alas-dose?", note: "Lahat ng hamon, pinakamabilis na marker.", rounds: 14, shot: 20, decay: 3, stock: 5, speed: 1.7, perfW: 7, goodW: 20, target: 65, events: ["tanong", "videoke", "bottomsup", "kapitbahay", "bantay"], chance: 0.5, fireworks: true, guests: [PEARL, ANALEH] }
+];
+const QUESTIONS = [
+  { who: 1, q: "O {n}, kailan ka mag-aasawa?", o: ["Pag naubos na 'tong bote, Tita.", "Wala po kayong pake.", "Nag-break po kami kahapon..."], a: 0 },
+  { who: 3, q: "First time mo rin ba, {n}? Kinakabahan ako eh.", o: ["Oo, pero sabay tayo, bes. Kaya natin 'to!", "Hindi, sanay na ako. Ikaw lang.", "Uwi na lang tayo?"], a: 0 },
+  { who: 3, q: "Pa'no ba hindi agad malasing?", o: ["Pulutan muna, tapos dahan-dahan.", "Inumin mo lahat agad para tapos na.", "Ewan ko rin, bes."], a: 0 },
+  { who: PEARL, q: "{n}, sino'ng pinaka-gwapo o maganda dito sa mesa?", o: ["Si Bantay, walang kaagaw.", "Si Tito Ven, syempre.", "Ikaw lang, Ate Pearl. Walang iba."], a: 2 },
+  { who: PEARL, q: "May jowa ka na ba? Spill mo na, bes!", o: ["Ang jowa ko ay itong barkada na 'to.", "Wala kayong pake, Ate.", "Meron pero secret, hehe."], a: 0 },
+  { who: ANALEH, q: "Ilang baso na ang nainom mo, {n}?", o: ["Hindi ko na mabilang, kaya tubig muna.", "Isa pa lang po. Promise.", "Nurse ka ba? Ah, oo nga pala."], a: 0 },
+  { who: ANALEH, q: "Kumain ka na ba bago uminom?", o: ["Opo, Ate. Sisig at kanin.", "Hindi po, diet ako.", "Ang pulutan na ang hapunan ko."], a: 0 },
+  { who: 0, q: "Sino nag-imbita sa'yo dito, {n}?", o: ["Kayo po, Tito. Kaya kayo ang may pananagutan!", "Wala po, nakisingit lang ako.", "Si Bantay po."], a: 0 },
+  { who: 0, q: "Sino mas magaling mag-basketball, ako o si Thea?", o: ["Kayong dalawa, depende sa araw.", "Si Tita po, obvious.", "Wala po sa inyo."], a: 0 },
+  { who: 2, q: "Masarap ba 'yung sisig ko?", o: ["Pinakamasarap sa buong barangay!", "Medyo maalat po.", "Galing po ba 'to sa karinderya?"], a: 0 },
+  { who: 1, q: "Ang laki mo na! Ilang taon ka na ulit?", o: ["Sapat na para tumagay, Tita!", "Secret po.", "Bakit po, may irereto kayo?"], a: 0 },
+  { who: 0, q: "Kwentuhan mo naman kami ng nakakatawa.", o: ["Nahulog ako sa jeep sa harap ng crush ko.", "Wala po akong maisip.", "Mag-cellphone na lang tayo."], a: 0 },
+  { who: 2, q: "Sino crush mo dito sa barangay?", o: ["Si Bantay lang ang tapat sa'kin.", "Ayoko pong sabihin.", "Kayo po, Ate. Joke lang!"], a: 0 },
+  { who: 0, q: "Bakit ang tahimik mo diyan?", o: ["Nag-iipon ng lakas para sa susunod na tagay!", "Inaantok na po ako.", "Kayo po kasi ang ingay."], a: 0 },
+  { who: 1, q: "Ano na ba trabaho mo ngayon?", o: ["Ayoko na pong isipin, Tita.", "Tambay po muna.", "Bawal pag-usapan ang trabaho sa inuman!"], a: 2 },
+  { who: 2, q: "Kanta tayo mamaya sa videoke?", o: ["Game! Ako bahala sa high notes.", "Ayoko, sintunado ako.", "Kayo na lang po."], a: 0 },
+  { who: 0, q: "Naalala mo pa nung bata ka, umiiyak ka pag walang sorbetes?", o: ["Hanggang ngayon naman po, Tito.", "Hindi po totoo 'yan!", "Sino po nagkwento sa inyo?"], a: 0 },
+  { who: 1, q: "Ay, tumaba ka yata?", o: ["Opo, sa sisig ni Ate Nini!", "Stress po, Tita.", "Bakit lagi n'yo pong napapansin?"], a: 0 },
+  { who: 0, q: "Last na 'to, promise. Isa pa?", o: ["Sige, walang iwanan!", "Ayoko na po talaga.", "Kanina pa po 'yang 'last na', Tito."], a: 2 },
+  { who: 1, q: "Bakit hindi ka na nagsisimba?", o: ["Dito po ang fellowship ko, Tita.", "Busy po.", "Kayo nga po, nandito rin."], a: 0 },
+  { who: 2, q: "Ano pasalubong mo sa'kin pag-uwi ko galing abroad?", o: ["Ikaw na mismo, Ate. Bumalik ka lang.", "Wala po, ikaw ang may pera.", "Chocolates na lang po."], a: 0 }
+];
+const NPC_LINES = [
+  ["Tagay!", "Para sa barkada!", "Sarap nito, pare.", "Ayos 'tong gabing 'to."],
+  ["Naku, isa lang ha.", "Kampay!", "Hay, ang init ng gabi.", "Ako na, ako na."],
+  ["Kain kayo, ha!", "Cheers sa ating lahat!", "Sino susunod?", "Ubos na ang mani!"],
+  ["Hala, ang pait pa rin!", "Kampay, bes!", "Dahan-dahan lang tayo ha.", "Ako rin, first time ko dati!"]
+];
+NPC_LINES[PEARL] = ["Mga bes, ano'ng chika?", "Shot puno, walang tira!", "Kampay sa mga single!", "Ay, ang init ng tsismis ngayong gabi!"];
+NPC_LINES[ANALEH] = ["Isa lang ha, may duty pa ako bukas.", "Hydrate kayo, mga bes.", "Cheers! Pero may tubig dito.", "Bantayan ko kayong lahat."];
+const createScr = $("#scr-create");
+let draft = null;
+function look() { return !createScr.hidden && draft ? draft : (save.player || DEFAULT_LOOK); }
+function pn() { return look().name || "Pare"; }
+function nameOf(i) { return i === PLAYER ? pn().toUpperCase() : NAMES[i]; }
+function drawChar(ctx, i, x, y, flush) {
+  if (i === DOG) { drawArt(ctx, "askal", x, y); return; }
+  if (i !== PLAYER) { drawArt(ctx, WHO[i], x, y); return; }
+  const L = look();
+  ART.player = { w: 16, rows: HEADS[L.hair].concat(BODY) };
+  const P = { H: HAIR_COLS[L.hairCol][0], X: SHIRTS[L.shirt][0], x: SHIRTS[L.shirt][1], S: SKINS[L.skin][0], s: SKINS[L.skin][1] };
+  drawArt(ctx, "player", x, y, (ch, r, c, col) => {
+    let o = P[ch] || col;
+    if (flush && ch === "S" && r >= 4 && r <= 9) o = mix(o, "#e8706a", flush);
+    return o;
+  });
+}
+
+/* ---------- game state ---------- */
+const V = { holder: 0, drink: null, gx: CX[0] + 8, gy: 43, tama: 0, bottle: 1, stock: 3, dark: false, rain: false, fireworks: false, sparks: [], nextFw: 0 };
+const TV = { holder: 0, drink: null, gx: CX[0] + 8, gy: 43, tama: 0, bottle: 0.8, stock: 3, sparks: [], nextFw: 0 };
+let S = null, gen = 0, curLevel = 0, qDeck = [], resolveTurn = null, lastResult = null;
+
+/* ---------- scene renderer ---------- */
+const STARS = [[6, 3, 0], [17, 6, 1.1], [30, 2, 2], [44, 5, .5], [58, 3, 1.7], [70, 7, .9], [90, 4, 2.4], [24, 9, 1.4], [52, 8, 2.8]];
+const BULBS = ["#ffcf5a", "#e8706a", "#7fd1a0", "#8fb4ff"];
+function drawScene(ctx, v, t) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = v.rain ? "#120f22" : "#171329"; ctx.fillRect(0, 0, 96, 80);
+  if (!v.rain) {
+    for (const s of STARS) if ((t * 1.3 + s[2]) % 3 > 0.35) { ctx.fillStyle = s[2] > 1.5 ? "#9a90b8" : "#f3ead8"; ctx.fillRect(s[0], s[1], 1, 1); }
+    ctx.fillStyle = "#f2ecc0"; ctx.fillRect(83, 1, 6, 6); ctx.fillStyle = "#d8d0a0"; ctx.fillRect(84, 2, 2, 2); ctx.fillRect(86, 4, 1, 1);
+  }
+  // wall + sign
+  ctx.fillStyle = "#4a3328"; ctx.fillRect(0, 12, 96, 46);
+  ctx.fillStyle = "#3a271f"; ctx.fillRect(0, 44, 96, 1); ctx.fillRect(0, 51, 96, 1);
+  ctx.fillStyle = "#0f0c1e"; ctx.fillRect(13, 12, 70, 7);
+  ctx.fillStyle = "#2f6d5a"; ctx.fillRect(14, 13, 68, 5);
+  ctx.fillStyle = v.dark ? "#7a6a3a" : "#ffcf5a";
+  for (let x = 18; x < 79; x += 2) if (x % 9 !== 0) ctx.fillRect(x, 15, 1, 1 + (x % 3 === 0 ? 1 : 0));
+  // window
+  ctx.fillStyle = "#0f0c1e"; ctx.fillRect(17, 20, 62, 16);
+  ctx.fillStyle = v.dark ? "#2a2416" : "#ffcf5a"; ctx.fillRect(18, 21, 60, 14);
+  const goods = ["#c83a3a", "#3b6cc0", "#3f8a4e", "#d9822b", "#f3ead8"];
+  for (let i = 0; i < 14; i++) { ctx.fillStyle = v.dark ? "#3a3020" : goods[i % 5]; const h = 2 + (i % 3); ctx.fillRect(20 + i * 4, 33 - h, 3, h); }
+  ctx.fillStyle = "#3a271f"; ctx.fillRect(18, 33, 60, 1);
+  for (let x = 24; x < 78; x += 9) ctx.fillRect(x, 21, 1, 14);
+  // lights
+  ctx.fillStyle = "#0f0c1e"; ctx.fillRect(0, 9, 96, 1);
+  for (let i = 0; i < 12; i++) {
+    const on = !v.dark && (Math.floor(t * 2) + i) % 5 !== 0;
+    ctx.fillStyle = on ? BULBS[i % 4] : "#3a2f4a"; ctx.fillRect(3 + i * 8, 9, 2, 2);
+  }
+  // ground
+  ctx.fillStyle = "#2b2238"; ctx.fillRect(0, 58, 96, 22);
+  ctx.fillStyle = "#3a2f4a"; ctx.fillRect(0, 58, 96, 1);
+  // people
+  for (let i = 0; i < 5; i++) {
+    let x = CX[i], y = 32, k = 0;
+    if (v.holder === i && !v.drink) y -= Math.round((Math.sin(t * 6) + 1) / 2);
+    if (i === PLAYER) {
+      if (v.tama > 55) x += Math.round(Math.sin(t * 2.2) * (v.tama - 55) / 22);
+      if (v.tama > 35) k = Math.min(0.8, (v.tama - 35) / 70);
+    }
+    drawChar(ctx, i, x, y, k);
+  }
+  // table
+  ctx.fillStyle = "#1b1420"; ctx.fillRect(7, 49, 82, 4); ctx.fillRect(10, 53, 76, 6); ctx.fillRect(12, 59, 5, 9); ctx.fillRect(79, 59, 5, 9);
+  ctx.fillStyle = "#e9e4d6"; ctx.fillRect(8, 50, 80, 2);
+  ctx.fillStyle = "#cfc8b6"; ctx.fillRect(11, 53, 74, 5); ctx.fillRect(13, 59, 3, 8); ctx.fillRect(80, 59, 3, 8);
+  // props
+  // dog naps under the table
+  drawArt(ctx, "askal", 40, 68 - (Math.floor(t * 1.5) % 4 === 0 ? 1 : 0));
+  drawArt(ctx, "mani", 18, 44);
+  const liquidTop = 13 - Math.round(Math.max(0, Math.min(1, v.bottle)) * 9);
+  drawArt(ctx, "bottle", 41, 35, (ch, r, c, col) => ((ch === "C" || ch === "W") && r >= 3 && r < liquidTop ? "#55707a" : col));
+  if (v.stock > 0) drawArt(ctx, "sisig", 56, 42);
+  // special guests walk in and stand at the table corners
+  for (const gi of (v.guests || [])) {
+    const seat = SEAT[gi];
+    v.gpos = v.gpos || {};
+    if (v.gpos[gi] == null) v.gpos[gi] = seat.from;
+    v.gpos[gi] += (seat.x - v.gpos[gi]) * 0.06;
+    const walking = Math.abs(seat.x - v.gpos[gi]) > 1;
+    let gy = seat.y;
+    if (walking) gy -= Math.floor(t * 8) % 2;
+    else if (v.holder === gi && !v.drink) gy -= Math.round((Math.sin(t * 6) + 1) / 2);
+    drawChar(ctx, gi, Math.round(v.gpos[gi]), gy, 0);
+  }
+  // glass
+  const hs = SEAT[v.holder];
+  let tx = hs.x + 8, ty = hs.y + 11;
+  if (v.drink) { const ds = SEAT[v.drink.h]; tx = ds.x + 4; ty = ds.y + 4; }
+  v.gx += (tx - v.gx) * 0.18; v.gy += (ty - v.gy) * 0.25;
+  drawArt(ctx, "shot", Math.round(v.gx), Math.round(v.gy));
+  // weather
+  if (v.rain) {
+    ctx.fillStyle = "rgba(143,180,255,0.55)";
+    for (let i = 0; i < 46; i++) { const x = (i * 37 + t * 40) % 96, y = (i * 13 + t * 110) % 80; ctx.fillRect(Math.floor(x), Math.floor(y), 1, 2); }
+  }
+  if (v.dark) {
+    ctx.fillStyle = "rgba(8,6,16,0.6)"; ctx.fillRect(0, 0, 96, 80);
+    ctx.fillStyle = "rgba(255,207,90,0.13)"; ctx.fillRect(26, 34, 26, 18); ctx.fillRect(30, 30, 18, 26);
+    ctx.fillStyle = "#f3ead8"; ctx.fillRect(36, 45, 2, 5);
+    ctx.fillStyle = (Math.floor(t * 8) % 2) ? "#ffcf5a" : "#d9822b"; ctx.fillRect(36, 43, 2, 2); ctx.fillRect(36 + (Math.floor(t * 5) % 2), 42, 1, 1);
+  }
+  if (v.fireworks) {
+    if (t > v.nextFw) {
+      v.nextFw = t + 1.2 + Math.random();
+      const cx = 8 + Math.random() * 80, cy = 2 + Math.random() * 8, col = BULBS[Math.floor(Math.random() * 4)];
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; v.sparks.push({ x: cx, y: cy, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, life: 1, col }); }
+    }
+    for (const p of v.sparks) { p.x += p.vx / 60; p.y += p.vy / 60; p.vy += 0.15; p.life -= 1 / 60; if (p.life > 0 && p.y < 12) { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); } }
+    v.sparks = v.sparks.filter((p) => p.life > 0);
+  }
+}
+
+/* ---------- canvases & loop ---------- */
+const scene = $("#scene"), sctx = scene.getContext("2d");
+const tcv = $("#titleScene"), tctx = tcv.getContext("2d");
+const icv = $("#introScene"), ictx = icv.getContext("2d");
+const pcv = $("#portrait"), pctx = pcv.getContext("2d");
+const ccv = $("#createPreview"), cctx = ccv.getContext("2d");
+let portraitWho = 0;
+function sizeCanvases() {
+  const w = Math.min($("#app").clientWidth - 32, 408);
+  const hAvail = window.innerHeight - 450;
+  const s = Math.max(2, Math.min(Math.floor((w - 8) / 96), Math.floor(hAvail / 80) || 2));
+  scene.style.width = 96 * s + "px"; scene.style.height = 80 * s + "px";
+  const ts = Math.max(2, Math.min(Math.floor(w / 96), Math.floor((window.innerHeight - 420) / 80) || 2));
+  tcv.style.width = 96 * ts + "px"; tcv.style.height = 80 * ts + "px";
+  const is = Math.max(2, Math.min(Math.floor(w / 96), Math.floor((window.innerHeight - 470) / 80) || 2));
+  icv.style.width = 96 * is + "px"; icv.style.height = 80 * is + "px";
+}
+window.addEventListener("resize", sizeCanvases);
+let t0 = performance.now();
+function loop(now) {
+  const t = (now - t0) / 1000;
+  if (!$("#scr-game").hidden) drawScene(sctx, V, t);
+  if (!$("#scr-title").hidden) { TV.holder = Math.floor(t / 2.2) % 5; drawScene(tctx, TV, t); }
+  if (!$("#scr-intro").hidden) drawScene(ictx, IV, t);
+  if (!createScr.hidden) { cctx.clearRect(0, 0, 16, 22); drawChar(cctx, PLAYER, 0, 0, 0); }
+  pctx.clearRect(0, 0, 16, 22);
+  drawChar(pctx, portraitWho, 0, portraitWho === DOG ? 12 : 0, 0);
+  requestAnimationFrame(loop);
+}
+const IV = { holder: PLAYER, drink: null, gx: CX[PLAYER] + 8, gy: 43, tama: 0, bottle: 1, stock: 3, sparks: [], nextFw: 0 };
+
+/* ---------- screens ---------- */
+const SCREENS = ["title", "how", "create", "levels", "intro", "game", "result"];
+function show(name) {
+  if (name === "create") openCreate();
+  SCREENS.forEach((n) => { $("#scr-" + n).hidden = n !== name; });
+  if (name === "levels") renderLevels();
+  sizeCanvases();
+}
+const toPlay = () => show(save.player && save.player.name ? "levels" : "create");
+$$("[data-go]").forEach((b) => b.addEventListener("click", () => { sfx.tap(); gen++; hideOverlay(); show(b.dataset.go); }));
+$("#btnPlay").addEventListener("click", () => { sfx.tap(); toPlay(); });
+$("#btnHowGo").addEventListener("click", () => { sfx.tap(); toPlay(); });
+
+/* ---------- character creator ---------- */
+function openCreate() {
+  draft = Object.assign({}, DEFAULT_LOOK, save.player || {});
+  $("#pName").value = draft.name;
+  $("#pErr").hidden = true;
+  $("#previewName").textContent = draft.name ? draft.name.toUpperCase() : "???";
+  pickRow("#optHair", HAIRS, "hair", false);
+  pickRow("#optHairCol", HAIR_COLS, "hairCol", true);
+  pickRow("#optSkin", SKINS, "skin", true);
+  pickRow("#optShirt", SHIRTS, "shirt", true);
+}
+function pickRow(sel, items, key, swatch) {
+  const row = $(sel); row.innerHTML = "";
+  items.forEach((it, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = swatch ? "pick sw" : "pick";
+    if (swatch) { b.style.background = it[0]; b.setAttribute("aria-label", it[it.length - 1]); b.title = it[it.length - 1]; }
+    else b.textContent = it;
+    b.setAttribute("aria-pressed", draft[key] === i ? "true" : "false");
+    b.addEventListener("click", () => {
+      sfx.tap(); draft[key] = i;
+      Array.from(row.children).forEach((x, j) => x.setAttribute("aria-pressed", j === i ? "true" : "false"));
+    });
+    row.appendChild(b);
+  });
+}
+$("#pName").addEventListener("input", (e) => {
+  draft.name = e.target.value.replace(/\s+/g, " ").slice(0, 12);
+  $("#previewName").textContent = draft.name.trim() ? draft.name.trim().toUpperCase() : "???";
+  if (draft.name.trim()) $("#pErr").hidden = true;
+});
+$("#btnSaveChar").addEventListener("click", () => {
+  const name = $("#pName").value.replace(/\s+/g, " ").trim().slice(0, 12);
+  if (!name) { $("#pErr").hidden = false; sfx.no(); $("#pName").focus(); return; }
+  sfx.ok();
+  save.player = Object.assign({}, draft, { name });
+  store.set("inuman-save-v1", save);
+  show("levels");
+});
+$("#btnHow").addEventListener("click", () => { sfx.tap(); show("how"); });
+function paintMute() { $("#btnMute").textContent = muted ? "TUNOG: OFF" : "TUNOG: ON"; }
+$("#btnMute").addEventListener("click", () => { muted = !muted; store.set("inuman-mute", muted); paintMute(); sfx.tap(); });
+paintMute();
+
+function starStr(n) { let s = ""; for (let i = 0; i < 3; i++) s += i < n ? "★" : "☆"; return s; }
+function renderLevels() {
+  const g = $("#levelGrid"); g.innerHTML = "";
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "lvl";
+    const locked = i + 1 > save.unlocked;
+    b.disabled = locked;
+    const st = save.stars[i] || 0;
+    b.innerHTML = '<span class="num">GABI ' + (i + 1) + '</span><span class="nm">' + (locked ? "Naka-lock" : L.name) + '</span><span class="st">' + (locked ? "" : starStr(st)) + "</span>";
+    b.setAttribute("aria-label", "Gabi " + (i + 1) + (locked ? ", naka-lock" : ", " + L.name + ", " + st + " sa 3 bituin"));
+    b.addEventListener("click", () => { sfx.tap(); openIntro(i); });
+    g.appendChild(b);
+  });
+}
+function openIntro(i) {
+  curLevel = i; const L = LEVELS[i];
+  $("#introNum").textContent = "GABI " + (i + 1);
+  $("#introName").textContent = L.name.toUpperCase();
+  $("#introDesc").textContent = L.desc;
+  $("#introNote").textContent = L.note + (L.guests ? " Special: darating si " + L.guests.map((g) => NAMES[g].replace("ATE ", "Ate ").replace("PEARL", "Pearl").replace("ANALEH", "Analeh")).join(" at ") + "." : "");
+  $("#introChips").innerHTML = '<span class="chip">Ikot: <b>' + L.rounds + '</b></span><span class="chip">Target na saya: <b>' + L.target + '</b></span><span class="chip">Pulutan: <b>' + L.stock + "</b></span>";
+  Object.assign(IV, { dark: !!L.dark, rain: !!L.rain, fireworks: !!L.fireworks, sparks: [], stock: L.stock });
+  show("intro");
+}
+$("#btnStart").addEventListener("click", () => { sfx.tap(); playLevel(curLevel); });
+
+/* ---------- HUD ---------- */
+const tamaSegs = $("#tamaSegs");
+for (let i = 0; i < 10; i++) { const d = document.createElement("div"); d.className = "seg"; tamaSegs.appendChild(d); }
+const SEG_COL = ["#efbb3c", "#efbb3c", "#efbb3c", "#efbb3c", "#d9822b", "#d9822b", "#d9822b", "#c83a3a", "#c83a3a", "#c83a3a"];
+function hud() {
+  const L = LEVELS[curLevel];
+  $("#hudLv").textContent = "GABI " + (curLevel + 1) + " · " + L.name.toUpperCase();
+  $("#hudRound").textContent = "IKOT " + Math.min(S.round, L.rounds) + "/" + L.rounds;
+  const filled = Math.ceil(S.tama / 10);
+  tamaSegs.childNodes.forEach((d, i) => { d.style.background = i < filled ? SEG_COL[i] : "#3a2f4a"; });
+  $("#tamaVal").textContent = Math.round(S.tama);
+  $("#sayaFill").style.width = Math.max(0, Math.min(100, S.saya)) + "%";
+  $("#sayaFill").style.background = S.saya >= L.target ? "var(--mint)" : "var(--orange)";
+  $("#sayaTarget").style.left = L.target + "%";
+  $("#sayaVal").textContent = Math.round(S.saya);
+  $("#stockLbl").textContent = "−Tama · " + S.stock + " natira";
+  const hg = $("#hudGuests");
+  hg.hidden = !S.guests.length;
+  hg.textContent = S.guests.length ? "KASAMA: " + S.guests.map((g) => GUEST_INFO[g].chip).join("  ") : "";
+  V.tama = S.tama; V.stock = S.stock;
+}
+function say(i, text) { portraitWho = i; $("#sayName").textContent = nameOf(i); $("#sayText").textContent = text; }
+function setActions(on) {
+  $$("#actions .btn").forEach((b) => { b.disabled = !on || (b.dataset.act === "pulutan" && S.stock <= 0); });
+}
+$$("#actions .btn").forEach((b) => b.addEventListener("click", () => {
+  if (!resolveTurn) return;
+  sfx.tap(); const r = resolveTurn; resolveTurn = null; setActions(false); r(b.dataset.act);
+}));
+function shake() { scene.classList.remove("shake"); void scene.offsetWidth; scene.classList.add("shake"); }
+
+/* ---------- overlay mini-games ---------- */
+const overlay = $("#overlay"), modal = $("#modal");
+let overlayKey = null;
+function hideOverlay() { overlay.hidden = true; modal.innerHTML = ""; overlayKey = null; }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function timing(opts) {
+  return new Promise((res) => {
+    const { title, sub, speed, perfW, goodW, flicker, btn } = opts;
+    const center = goodW / 2 + 2 + Math.random() * (96 - goodW);
+    modal.innerHTML = "<h3>" + esc(title) + "</h3><p>" + esc(sub) + '</p><div class="track' + (flicker ? " flicker" : "") + '" id="track"><div class="zone good" style="left:' + (center - goodW / 2) + "%;width:" + goodW + '%"></div><div class="zone perfect" style="left:' + (center - perfW / 2) + "%;width:" + perfW + '%"></div><div class="marker" id="marker"></div></div><div class="verdict" id="verdict"></div><button class="btn big red" id="stopBtn" type="button">' + esc(btn || "INOM!") + "</button>";
+    overlay.hidden = false;
+    const mk = $("#marker"), myGen = gen;
+    let p = Math.random() < 0.5 ? 0 : 100, dir = p ? -1 : 1, last = performance.now(), done = false;
+    function step(now) {
+      if (done) return;
+      if (myGen !== gen) { done = true; return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      p += dir * speed * 85 * dt;
+      if (p > 100) { p = 100; dir = -1; } if (p < 0) { p = 0; dir = 1; }
+      mk.style.left = p + "%";
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    function stop() {
+      if (done) return; done = true; overlayKey = null;
+      const d = Math.abs(p - center);
+      const r = d <= perfW / 2 ? "perfect" : d <= goodW / 2 ? "good" : "miss";
+      const v = $("#verdict");
+      v.textContent = r === "perfect" ? "SAKTO!" : r === "good" ? "PWEDE NA!" : "SABLAY!";
+      v.className = "verdict v-" + r;
+      sfx[r]();
+      $("#stopBtn").disabled = true;
+      setTimeout(() => { hideOverlay(); res(r); }, 650);
+    }
+    $("#stopBtn").addEventListener("click", stop);
+    $("#track").addEventListener("pointerdown", stop);
+    overlayKey = stop;
+    setTimeout(() => { if (!done && myGen === gen) stop(); }, 8000);
+    $("#stopBtn").focus({ preventScroll: true });
+  });
+}
+document.addEventListener("keydown", (e) => { if ((e.code === "Space" || e.code === "Enter") && overlayKey) { e.preventDefault(); overlayKey(); } });
+
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function present(i) { return i < 4 || (S && S.guests.includes(i)); }
+function nextQuestion() {
+  for (let tries = 0; tries < 60; tries++) {
+    if (!qDeck.length) qDeck = shuffle(QUESTIONS);
+    const q = qDeck.pop();
+    if (present(q.who)) return q;
+  }
+  return QUESTIONS[0];
+}
+function ask(q) {
+  return new Promise((res) => {
+    const opts = shuffle(q.o.map((t, i) => ({ t, ok: i === q.a })));
+    const asker = q.who;
+    const text = q.q.replace("{n}", pn());
+    modal.innerHTML = '<div class="asker">' + esc(nameOf(asker)) + ' NAGTANONG</div><h3 class="q">' + esc(text) + '</h3><div class="opts">' + opts.map((o, i) => '<button class="opt" type="button" data-i="' + i + '">' + esc(o.t) + "</button>").join("") + "</div>";
+    overlay.hidden = false;
+    say(asker, text);
+    let done = false;
+    $$(".opt").forEach((b) => b.addEventListener("click", () => {
+      if (done) return; done = true;
+      const o = opts[+b.dataset.i];
+      $$(".opt").forEach((x) => { x.disabled = true; if (opts[+x.dataset.i].ok) x.classList.add("ok"); });
+      if (!o.ok) b.classList.add("no");
+      o.ok ? sfx.ok() : sfx.no();
+      setTimeout(() => { hideOverlay(); res({ ok: o.ok, asker }); }, 950);
+    }));
+    $(".opt").focus({ preventScroll: true });
+  });
+}
+function choice(title, text, buttons) {
+  return new Promise((res) => {
+    modal.innerHTML = "<h3>" + esc(title) + "</h3><p>" + esc(text) + '</p><div class="stack">' + buttons.map((b, i) => '<button class="btn ' + (b.cls || "") + '" type="button" data-i="' + i + '">' + esc(b.label) + "</button>").join("") + "</div>";
+    overlay.hidden = false;
+    $$("#modal .btn").forEach((b) => b.addEventListener("click", () => { sfx.tap(); hideOverlay(); res(+b.dataset.i); }));
+    $("#modal .btn").focus({ preventScroll: true });
+  });
+}
+
+/* ---------- game flow ---------- */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+class Abort extends Error {}
+async function wait(ms, g) { await sleep(ms); if (g !== gen) throw new Abort(); }
+const clamp = (n) => Math.max(0, Math.min(100, n));
+function addTama(n) { S.tama = clamp(S.tama + n); hud(); }
+function addSaya(n) { S.saya = clamp(S.saya + n); hud(); }
+function lost() { return S.tama >= 100 ? "bagsak" : S.saya <= 0 ? "kj" : null; }
+
+async function drinkAnim(h, g) {
+  V.holder = h; V.drink = { h }; sfx.gulp();
+  await wait(650, g);
+  V.drink = null;
+}
+async function arrive(id, g) {
+  const info = GUEST_INFO[id];
+  S.guests.push(id); V.guests = S.guests.slice();
+  sfx.win();
+  await wait(1400, g);
+  await choice(info.title, info.text, [{ label: info.btn, cls: id === PEARL ? "red" : "teal" }]);
+  if (g !== gen) throw new Abort();
+  if (id === PEARL) { S.stock += 3; addSaya(10); }
+  if (id === ANALEH) { S.chaser = 0.8; addTama(-10); }
+  hud();
+  say(id, info.line.replace("{n}", pn()));
+  await wait(1300, g);
+}
+async function npcTurns(g) {
+  const L = LEVELS[curLevel];
+  for (const h of [0, 1, 2, 3].concat(S.guests)) {
+    V.holder = h;
+    const lines = NPC_LINES[h];
+    say(h, h === 0 && S.round === 1 ? "Ako muna, tanggero ang nagsisimula. Tagay!" : lines[Math.floor(Math.random() * lines.length)]);
+    await wait(420, g);
+    await drinkAnim(h, g);
+    addTama(-1); addSaya(-L.decay / 4);
+    S.pours++;
+    V.bottle = Math.max(0.04, 1 - S.pours / (L.rounds * 4 + 6));
+    if (lost()) return;
+    await wait(200, g);
+  }
+}
+function passLine() {
+  const n = pn();
+  if (S.tama >= 75) return "Kaya pa ba, " + n + "? Ikaw na ulit!";
+  if (S.tama >= 45) return "Namumula ka na ah! Ikaw na, " + n + ".";
+  if (S.saya < LEVELS[curLevel].target - 10) return "Ang tahimik mo ah. Ikaw na, " + n + "!";
+  return "Ikaw na, " + n + "! Bawal tumanggi sa tagay.";
+}
+async function playerTurn(g) {
+  const L = LEVELS[curLevel];
+  V.holder = PLAYER;
+  say(0, passLine());
+  setActions(true);
+  const act = await new Promise((r) => { resolveTurn = r; });
+  if (g !== gen) throw new Abort();
+  if (act === "tagay") {
+    const r = await timing({ title: "TAGAY!", sub: "Pindutin ang INOM! kapag nasa dilaw.", speed: L.speed, perfW: L.perfW, goodW: L.goodW, flicker: !!L.dark });
+    if (g !== gen) throw new Abort();
+    await drinkAnim(PLAYER, g);
+    S.shots++;
+    const ch = S.chaser;
+    if (r === "perfect") { S.perfects++; addTama(L.shot * 0.6 * ch); addSaya(12); say(0, "Ayos! Sanay na sanay ah!"); }
+    else if (r === "good") { addTama(L.shot * ch); addSaya(8); say(0, "Ayan! Isa pa mamaya."); }
+    else { addTama(L.shot * 1.5 * ch); addSaya(2); shake(); say(present(ANALEH) ? ANALEH : 1, "Hala, nasamid! Dahan-dahan lang."); }
+  } else if (act === "pulutan") {
+    S.stock--; sfx.eat(); addTama(-14); addSaya(3 - 7);
+    say(2, Math.random() < 0.5 ? "Kain ka muna, " + pn() + ". Para di ka malasing." : "Uy, pulutan muna bago tagay? Sige na nga.");
+  } else if (act === "kwento") {
+    const res = await ask(nextQuestion());
+    if (g !== gen) throw new Abort();
+    if (res.ok) { addSaya(16 - 7); say(res.asker, "Hahaha! Ang kulit mo talaga!"); }
+    else { addSaya(-8 - 7); say(res.asker, "...Ah. Okay. Tagay na lang tayo."); }
+  } else if (act === "tubig") {
+    sfx.water(); addTama(-22); addSaya(-5 - 7);
+    say(0, "Tubig?! Ang KJ naman nito!");
+  }
+  await wait(1100, g);
+}
+async function runEvent(g) {
+  const L = LEVELS[curLevel];
+  const ev = L.events[Math.floor(Math.random() * L.events.length)];
+  if (ev === "kapitbahay") {
+    say(2, "Uy, may dumating!");
+    await choice("MAY BISITA!", "Dumaan si Aling Nena galing sa tindahan, may dalang chicharon. Dagdag pulutan!", [{ label: "SALAMAT PO!", cls: "orange" }]);
+    S.stock += 2; addSaya(4); hud();
+  } else if (ev === "tanong") {
+    const res = await ask(nextQuestion());
+    if (res.ok) { addSaya(12); say(res.asker, "Hahaha! Tama ka diyan!"); } else { addSaya(-8); say(res.asker, "Hmm. Ang seryoso mo naman."); }
+    await wait(900, g);
+  } else if (ev === "bantay") {
+    say(DOG, "Arf! Arf!");
+    const pick = await choice("SI BANTAY!", "Nakatitig si Bantay sa sisig at kumakawag ang buntot. Bibigyan mo ba?", [{ label: "BIGYAN SI BANTAY", cls: "orange" }, { label: "SHOO, BANTAY!", cls: "ghost" }]);
+    if (g !== gen) throw new Abort();
+    if (pick === 0) { if (S.stock > 0) S.stock--; addSaya(8); hud(); say(2, "Ang bait mo naman! Gutom talaga 'yan si Bantay."); }
+    else { addSaya(-3); say(3, "Kawawa naman si Bantay..."); }
+    await wait(900, g);
+  } else if (ev === "videoke") {
+    say(2, "Videoke time! Sabayan mo ako, " + pn() + "!");
+    await choice("VIDEOKE!", "Tatlong beat. Tapikin kapag nasa dilaw para tumaas ang score.", [{ label: "KANTA NA!", cls: "blue" }]);
+    let pts = 0;
+    for (let k = 0; k < 3; k++) {
+      const r = await timing({ title: "BEAT " + (k + 1) + "/3", sub: "Sabay sa kanta!", speed: L.speed * 1.15, perfW: L.perfW + 2, goodW: L.goodW + 4, btn: "♪ TAP!" });
+      if (g !== gen) throw new Abort();
+      pts += r === "perfect" ? 6 : r === "good" ? 3 : -3;
+    }
+    addSaya(pts);
+    say(2, pts >= 12 ? "Score: 100! Palakpakan!" : pts > 0 ? "Pwede na! Next song!" : "Ay, sintunado. Okay lang, masaya pa rin!");
+    await wait(1000, g);
+  } else if (ev === "bottomsup") {
+    say(0, pn() + "! Bottoms up tayo. Kaya mo?");
+    const pick = await choice("HAMON NI TITO VEN", "Bottoms up! Doble ang tama, pero malaking saya kung tatanggapin mo.", [{ label: "SIGE, LABAN!", cls: "red" }, { label: "PASS MUNA, TITO", cls: "ghost" }]);
+    if (g !== gen) throw new Abort();
+    if (pick === 0) {
+      const r = await timing({ title: "BOTTOMS UP!", sub: "Isang lagukan lang!", speed: L.speed * 1.1, perfW: L.perfW, goodW: L.goodW, flicker: !!L.dark });
+      if (g !== gen) throw new Abort();
+      await drinkAnim(PLAYER, g);
+      S.shots++;
+      const ch = S.chaser;
+      if (r === "perfect") { S.perfects++; addTama(L.shot * 1.1 * ch); addSaya(26); say(present(PEARL) ? PEARL : 0, "WOOO! Idol!"); }
+      else if (r === "good") { addTama(L.shot * 1.6 * ch); addSaya(20); say(0, "Ayos! May bago na kaming tanggero!"); }
+      else { addTama(L.shot * 2 * ch); addSaya(8); shake(); say(1, "Naku, tumapon pa! Pero sige, palakpakan."); }
+    } else { addSaya(-10); say(0, "Hay naku. Sige na nga, next time."); }
+    await wait(1000, g);
+  }
+}
+
+async function playLevel(i) {
+  gen++; const g = gen; curLevel = i; hideOverlay();
+  const L = LEVELS[i];
+  S = { round: 1, tama: 0, saya: 50, stock: L.stock, shots: 0, perfects: 0, guests: [], chaser: 1, pours: 0, arrivals: {} };
+  (L.guests || []).forEach((gid, k) => {
+    let r = 2 + Math.floor(Math.random() * Math.max(1, L.rounds - 4));
+    while (S.arrivals[r]) r++;
+    S.arrivals[r] = gid;
+  });
+  Object.assign(V, { guests: [], gpos: {}, holder: 0, drink: null, gx: CX[0] + 8, gy: 43, bottle: 1, dark: !!L.dark, rain: !!L.rain, fireworks: !!L.fireworks, sparks: [], nextFw: 0 });
+  resolveTurn = null;
+  show("game"); hud(); setActions(false);
+  say(0, i === 0 ? "Welcome sa barkada, " + pn() + "! Isang baso lang ang umiikot dito." : L.desc);
+  try {
+    await wait(1700, g);
+    for (let r = 1; r <= L.rounds; r++) {
+      S.round = r; hud();
+      if (S.arrivals[r] != null) await arrive(S.arrivals[r], g);
+      await npcTurns(g);
+      if (lost()) return finish(g, lost());
+      await playerTurn(g);
+      if (lost()) return finish(g, lost());
+      addTama(-1.5); addSaya(-L.decay * 2 / 3);
+      if (present(PEARL)) addSaya(1.5);
+      if (present(ANALEH)) addTama(-1.5);
+      if (lost()) return finish(g, lost());
+      if (r < L.rounds && L.events.length && Math.random() < L.chance) {
+        await runEvent(g);
+        if (lost()) return finish(g, lost());
+      }
+    }
+    V.bottle = 0.04;
+    finish(g, S.saya >= L.target ? "win" : "matamlay");
+  } catch (e) {
+    if (!(e instanceof Abort)) throw e;
+  }
+}
+
+function finish(g, outcome) {
+  if (g !== gen) return;
+  setActions(false); hideOverlay();
+  const L = LEVELS[curLevel];
+  const win = outcome === "win";
+  let stars = 0;
+  if (win) {
+    stars = 1 + (S.saya >= L.target + 20 ? 1 : 0) + (S.tama < 50 ? 1 : 0);
+    save.stars[curLevel] = Math.max(save.stars[curLevel] || 0, stars);
+    save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, curLevel + 2));
+    store.set("inuman-save-v1", save);
+  }
+  const last = curLevel === LEVELS.length - 1;
+  const T = {
+    win: last ? ["MANIGONG BAGONG TAON!", "Umabot ka hanggang alas-dose. Buong taon kang pag-uusapan ng barkada. Isa ka na sa kanila, " + pn() + "."] : ["PANALO!", "Naubos ang bote at buo pa ang barkada. Ikaw na ang bagong paborito ni Tito Ven."],
+    bagsak: ["BAGSAK!", "Nakatulog ka sa monobloc. Kinunan ka pa ng picture ni Tita Thea."],
+    kj: ["ANG KJ MO!", "Isa-isang nag-uwian ang barkada. Kahit si Bantay, umalis."],
+    matamlay: ["KULANG SA SAYA", "Natapos ang gabi pero matamlay ang barkada. Kailangan ng " + L.target + " na saya, " + Math.round(S.saya) + " lang ang naabot."]
+  }[outcome];
+  $("#resTitle").textContent = T[0];
+  $("#resTitle").style.color = win ? "var(--lamp)" : "#ff7a6e";
+  $("#resText").textContent = T[1];
+  $("#resStars").innerHTML = win ? [0, 1, 2].map((k) => (k < stars ? "★" : '<span class="off">★</span>')).join("") : "";
+  $("#resStars").setAttribute("aria-label", win ? stars + " sa 3 bituin" : "");
+  $("#resStats").innerHTML =
+    '<div class="stat">Gabi<b>' + (curLevel + 1) + " / 10</b></div>" +
+    '<div class="stat">Tagay<b>' + S.shots + "</b></div>" +
+    '<div class="stat">Sakto<b>' + S.perfects + "</b></div>" +
+    '<div class="stat">Tama · Saya<b>' + Math.round(S.tama) + " · " + Math.round(S.saya) + "</b></div>";
+  const next = $("#btnNext");
+  next.hidden = !win || last;
+  win ? sfx.win() : sfx.lose();
+  lastResult = outcome;
+  setTimeout(() => { if (g === gen) show("result"); }, outcome === "win" ? 400 : 900);
+}
+$("#btnQuit").addEventListener("click", () => {
+  sfx.tap(); gen++; resolveTurn = null; hideOverlay(); show("levels");
+});
+$("#btnRetry").addEventListener("click", () => { sfx.tap(); playLevel(curLevel); });
+$("#btnNext").addEventListener("click", () => { sfx.tap(); openIntro(curLevel + 1); });
+
+show("title");
+requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+/* Android hardware back button: leave the current night or go back one screen */
+(function () {
+  function back() {
+    var overlay = document.getElementById("overlay");
+    var game = document.getElementById("scr-game");
+    var title = document.getElementById("scr-title");
+    if (game && !game.hidden) { document.getElementById("btnQuit").click(); return; }
+    if (overlay && !overlay.hidden) return;
+    if (title && title.hidden) {
+      var close = document.querySelector(".screen:not([hidden]) [data-go]");
+      if (close) { close.click(); return; }
+      var levels = document.querySelector('[data-go="levels"]');
+      if (levels) { levels.click(); return; }
+    }
+    var App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (App && App.exitApp) App.exitApp();
+  }
+  var App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (App && App.addListener) App.addListener("backButton", back);
+  document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+})();
+</script>
+</body>
+</html>
