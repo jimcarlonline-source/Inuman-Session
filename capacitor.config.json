@@ -1,0 +1,9 @@
+{
+  "appId": "com.ven.inumansession",
+  "appName": "Inuman Session",
+  "webDir": "www",
+  "backgroundColor": "#171329",
+  "android": {
+    "backgroundColor": "#171329"
+  }
+}
