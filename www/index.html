@@ -213,7 +213,7 @@ h1, h2, h3, p { margin: 0; }
     <h1 class="logo">INUMAN</h1>
     <div class="logo-2">SESSION</div>
     <p class="tag">Isang tagay pa, pare.</p>
-    <canvas id="titleScene" width="96" height="80" aria-label="Ang barkada sa harap ng sari-sari store, gabi" role="img"></canvas>
+    <canvas id="titleScene" width="96" height="80" aria-label="Ang barkada sa harap ng Alcantara Store, gabi" role="img"></canvas>
     <div class="stack">
       <button class="btn big red" id="btnPlay" type="button">LARO NA!</button>
       <div class="row">
@@ -596,6 +596,20 @@ const V = { holder: 0, drink: null, gx: CX[0] + 8, gy: 43, tama: 0, bottle: 1, s
 const TV = { holder: 0, drink: null, gx: CX[0] + 8, gy: 43, tama: 0, bottle: 0.8, stock: 3, sparks: [], nextFw: 0 };
 let S = null, gen = 0, curLevel = 0, qDeck = [], resolveTurn = null, lastResult = null;
 
+
+/* 3x5 pixel font for the store sign */
+const GLYPHS = { A: ["010","101","111","101","101"], L: ["100","100","100","100","111"], C: ["011","100","100","100","011"],
+  N: ["110","101","101","101","101"], T: ["111","010","010","010","010"], R: ["110","101","110","101","101"],
+  S: ["011","100","010","001","110"], O: ["010","101","101","101","010"], E: ["111","100","110","100","111"], " ": ["000","000","000","000","000"] };
+function pixelText(ctx, text, x, y, color) {
+  ctx.fillStyle = color;
+  for (const ch of text) {
+    const g = GLYPHS[ch] || GLYPHS[" "];
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "1") ctx.fillRect(x + c, y + r, 1, 1);
+    x += 4;
+  }
+}
+const STORE_NAME = "ALCANTARA STORE";
 /* ---------- scene renderer ---------- */
 const STARS = [[6, 3, 0], [17, 6, 1.1], [30, 2, 2], [44, 5, .5], [58, 3, 1.7], [70, 7, .9], [90, 4, 2.4], [24, 9, 1.4], [52, 8, 2.8]];
 const BULBS = ["#ffcf5a", "#e8706a", "#7fd1a0", "#8fb4ff"];
@@ -611,8 +625,7 @@ function drawScene(ctx, v, t) {
   ctx.fillStyle = "#3a271f"; ctx.fillRect(0, 44, 96, 1); ctx.fillRect(0, 51, 96, 1);
   ctx.fillStyle = "#0f0c1e"; ctx.fillRect(13, 12, 70, 7);
   ctx.fillStyle = "#2f6d5a"; ctx.fillRect(14, 13, 68, 5);
-  ctx.fillStyle = v.dark ? "#7a6a3a" : "#ffcf5a";
-  for (let x = 18; x < 79; x += 2) if (x % 9 !== 0) ctx.fillRect(x, 15, 1, 1 + (x % 3 === 0 ? 1 : 0));
+  pixelText(ctx, STORE_NAME, 18, 13, v.dark ? "#7a6a3a" : "#ffcf5a");
   // window
   ctx.fillStyle = "#0f0c1e"; ctx.fillRect(17, 20, 62, 16);
   ctx.fillStyle = v.dark ? "#2a2416" : "#ffcf5a"; ctx.fillRect(18, 21, 60, 14);
@@ -1016,7 +1029,7 @@ async function runEvent(g) {
   const ev = L.events[Math.floor(Math.random() * L.events.length)];
   if (ev === "kapitbahay") {
     say(2, "Uy, may dumating!");
-    await choice("MAY BISITA!", "Dumaan si Aling Nena galing sa tindahan, may dalang chicharon. Dagdag pulutan!", [{ label: "SALAMAT PO!", cls: "orange" }]);
+    await choice("MAY BISITA!", "Dumaan si Aling Nena galing sa Alcantara Store, may dalang chicharon. Dagdag pulutan!", [{ label: "SALAMAT PO!", cls: "orange" }]);
     S.stock += 2; addSaya(4); hud();
   } else if (ev === "tanong") {
     const res = await ask(nextQuestion());
